@@ -1,0 +1,1436 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>IBM System/360 · Reconstrucción Museística 3D Interactiva</title>
+  <style>
+    /* ========== ESTILO GLOBAL ========== */
+    :root {
+      --amber: #c9a45c;
+      --amber-bright: #e8c97a;
+      --bg-dark: #0a0a0c;
+      --panel-bg: rgba(12, 12, 16, 0.88);
+      --text-main: #e8dcc8;
+      --text-dim: #a09078;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      overflow: hidden;
+      background-color: var(--bg-dark);
+      font-family: 'Courier New', Courier, monospace;
+      color: var(--text-main);
+      cursor: default;
+    }
+
+    /* ========== PANEL DE INFORMACIÓN PRINCIPAL ========== */
+    #info-panel {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      max-width: 360px;
+      background: var(--panel-bg);
+      backdrop-filter: blur(10px);
+      border-left: 4px solid var(--amber);
+      padding: 18px 22px;
+      border-radius: 0 12px 12px 0;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+      pointer-events: none;
+      z-index: 10;
+      transition: opacity 0.4s ease;
+    }
+
+    #info-panel h1 {
+      margin: 0 0 4px 0;
+      font-size: 1.9rem;
+      font-weight: 400;
+      letter-spacing: 1.5px;
+      color: #f5ead2;
+      font-family: 'Times New Roman', serif;
+      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+    }
+
+    #info-panel .subhead {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      margin-bottom: 12px;
+      border-bottom: 1px solid #3a3a44;
+      padding-bottom: 10px;
+      letter-spacing: 0.5px;
+    }
+
+    #info-panel .spec {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.78rem;
+      margin-bottom: 4px;
+      color: #c0c0c8;
+      line-height: 1.4;
+    }
+
+    #info-panel .spec span:first-child {
+      color: var(--text-dim);
+      flex-shrink: 0;
+    }
+
+    #info-panel .spec span:last-child {
+      color: #e8dcc8;
+      font-weight: 600;
+      text-align: right;
+      padding-left: 8px;
+    }
+
+    /* ========== TOOLTIP DE DISPOSITIVO (al hacer hover/clic) ========== */
+    #device-tooltip {
+      position: absolute;
+      max-width: 340px;
+      min-width: 240px;
+      background: rgba(8, 8, 12, 0.96);
+      backdrop-filter: blur(14px);
+      border: 1px solid var(--amber);
+      border-radius: 10px;
+      padding: 16px 18px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(201, 164, 92, 0.15);
+      pointer-events: none;
+      z-index: 1000;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      color: var(--text-main);
+    }
+
+    #device-tooltip.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    #device-tooltip h3 {
+      margin: 0 0 6px 0;
+      font-size: 1.05rem;
+      color: var(--amber-bright);
+      font-family: 'Times New Roman', serif;
+      letter-spacing: 0.8px;
+      border-bottom: 1px solid rgba(201, 164, 92, 0.3);
+      padding-bottom: 6px;
+    }
+
+    #device-tooltip .tt-sub {
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      margin-bottom: 10px;
+      font-style: italic;
+    }
+
+    #device-tooltip .tt-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.72rem;
+      margin-bottom: 4px;
+      line-height: 1.35;
+      gap: 10px;
+    }
+
+    #device-tooltip .tt-row span:first-child {
+      color: var(--text-dim);
+      flex-shrink: 0;
+    }
+
+    #device-tooltip .tt-row span:last-child {
+      color: #f0e6d2;
+      text-align: right;
+      font-weight: 600;
+    }
+
+    #device-tooltip .tt-desc {
+      margin-top: 10px;
+      font-size: 0.7rem;
+      color: #b0b0b8;
+      line-height: 1.45;
+      border-top: 1px solid rgba(201, 164, 92, 0.2);
+      padding-top: 8px;
+      font-family: 'Courier New', monospace;
+    }
+
+    /* ========== BOTONES DE CONTROL ========== */
+    #controls {
+      position: absolute;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      background: rgba(16, 16, 22, 0.82);
+      backdrop-filter: blur(12px);
+      padding: 12px 22px;
+      border-radius: 60px;
+      border: 1px solid #3a3a4a;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.7);
+      z-index: 20;
+      max-width: 95vw;
+    }
+
+    #controls button {
+      background: transparent;
+      border: 1px solid #5a5a6a;
+      color: #d0c8b8;
+      padding: 8px 16px;
+      border-radius: 30px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.8px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    #controls button:hover {
+      background: var(--amber);
+      border-color: var(--amber);
+      color: var(--bg-dark);
+      box-shadow: 0 0 20px rgba(201, 164, 92, 0.55);
+    }
+
+    #controls button.active {
+      background: var(--amber);
+      border-color: var(--amber);
+      color: var(--bg-dark);
+      box-shadow: 0 0 14px rgba(201, 164, 92, 0.4);
+    }
+
+    /* ========== ETIQUETAS FLOTANTES DE COMPONENTES ========== */
+    .label-marker {
+      position: absolute;
+      background: rgba(10, 10, 14, 0.9);
+      border: 1px solid var(--amber);
+      color: var(--text-main);
+      padding: 5px 12px;
+      border-radius: 18px;
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 0.6px;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.8);
+      z-index: 100;
+      transform: translate(-50%, -100%);
+      margin-top: -10px;
+    }
+
+    .label-marker.visible {
+      opacity: 1;
+    }
+
+    /* ========== INDICADOR DE HOVER ========== */
+    #hover-hint {
+      position: absolute;
+      bottom: 90px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(10, 10, 14, 0.85);
+      border: 1px solid rgba(201, 164, 92, 0.5);
+      color: var(--amber-bright);
+      padding: 8px 20px;
+      border-radius: 30px;
+      font-size: 0.72rem;
+      letter-spacing: 1px;
+      pointer-events: none;
+      z-index: 15;
+      opacity: 0;
+      transition: opacity 0.4s ease;
+      text-align: center;
+      backdrop-filter: blur(8px);
+    }
+
+    #hover-hint.visible {
+      opacity: 1;
+    }
+
+    /* ========== VIÑETA ========== */
+    #vignette {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      background: radial-gradient(circle at center, transparent 35%, rgba(0, 0, 0, 0.7) 100%);
+      z-index: 5;
+    }
+
+    /* ========== RESPONSIVE ========== */
+    @media (max-width: 800px) {
+      #info-panel {
+        max-width: 240px;
+        padding: 12px 14px;
+      }
+      #info-panel h1 { font-size: 1.3rem; }
+      #info-panel .spec { font-size: 0.68rem; }
+      #controls button { padding: 6px 10px; font-size: 0.6rem; }
+      #controls { gap: 6px; padding: 8px 12px; }
+      #device-tooltip { max-width: 280px; font-size: 0.85rem; }
+      #hover-hint { font-size: 0.62rem; padding: 6px 14px; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Panel de información general -->
+  <div id="info-panel">
+    <h1>IBM System/360</h1>
+    <div class="subhead">1964 · La familia de computadoras que definió la era moderna</div>
+    <div class="spec"><span>Arquitectura</span> <span>Familia compatible</span></div>
+    <div class="spec"><span>Modelo base</span> <span>30 / 40 / 50 / 65 / 75</span></div>
+    <div class="spec"><span>Memoria</span> <span>8 KB – 8 MB (núcleo)</span></div>
+    <div class="spec"><span>Unidades vendidas</span> <span>+33.000 (1969)</span></div>
+    <div class="spec"><span>Inversión I+D</span> <span>$5.000 M (1964)</span></div>
+    <div class="spec"><span>Precio típico</span> <span>$2.5M – $5.5M</span></div>
+    <div class="spec"><span>Fabricante</span> <span>IBM Corporation</span></div>
+  </div>
+
+  <!-- Tooltip de dispositivo (hover/clic) -->
+  <div id="device-tooltip"></div>
+
+  <!-- Pista de hover -->
+  <div id="hover-hint">Pasa el cursor sobre los componentes para ver su información</div>
+
+  <!-- Controles -->
+  <div id="controls">
+    <button id="btn-rotate" class="active">Rotar</button>
+    <button id="btn-labels">Etiquetas</button>
+    <button id="btn-explode">Vista explosionada</button>
+    <button id="btn-lights">Encender/apagar</button>
+    <button id="btn-tape" class="active">Mover cintas</button>
+    <button id="btn-reset">Reiniciar cámara</button>
+  </div>
+
+  <div id="vignette"></div>
+
+  <!-- Importmap para Three.js 0.160.0 -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+    import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+    import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+    import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+    import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+    import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
+
+    // ============================================================
+    // BASE DE DATOS DE INFORMACIÓN DE DISPOSITIVOS
+    // ============================================================
+    const DEVICE_INFO = {
+      cpu: {
+        title: 'Unidad Central de Proceso (CPU)',
+        subtitle: 'IBM System/360 · Modelo 40 / 50',
+        specs: [
+          ['Arquitectura', 'Registros de 32 bits'],
+          ['Velocidad', '0.5 – 2.5 MIPS'],
+          ['Memoria', 'Hasta 256 KB núcleo'],
+          ['Ciclo reloj', '1.0 – 2.0 MHz'],
+          ['Tecnología', 'SLT híbrido (Solid Logic)'],
+          ['Canales', 'Hasta 7 canales multiplex'],
+        ],
+        desc: 'El corazón de la familia System/360. Introdujo la revolucionaria compatibilidad de software entre modelos, permitiendo actualizar el hardware sin reescribir aplicaciones. Fabricado con módulos híbridos SLT (Solid Logic Technology).'
+      },
+      memoria: {
+        title: 'Memoria de Núcleo Magnético',
+        subtitle: 'Almacenamiento principal',
+        specs: [
+          ['Tipo', 'Núcleo magnético de ferrita'],
+          ['Capacidad', '8 KB – 8 MB'],
+          ['Ciclo', '2.0 – 4.0 µs'],
+          ['Direccionamiento', 'Por bytes (8 bits)'],
+          ['Volátil', 'No (no volátil)'],
+          ['Tecnología', 'Núcleos de 0.5 – 1.5 mm'],
+        ],
+        desc: 'Memoria de núcleo magnético construida con diminutos anillos de ferrita tejidos a mano. Cada núcleo almacena un bit. Aunque voluminosa, era fiable y no volátil, guardando los datos incluso al apagar el sistema.'
+      },
+      cinta: {
+        title: 'Unidad de Cinta Magnética',
+        subtitle: 'IBM 2401 · Modelo 1-8',
+        specs: [
+          ['Tipo', 'Cinta de ½ pulgada'],
+          ['Densidad', '800 / 1600 bpi'],
+          ['Velocidad', '75 – 320 pulgadas/s'],
+          ['Transferencia', '15 – 340 KB/s'],
+          ['Carrete', 'Hasta 2400 pies'],
+          ['Tecnología', 'Lectura/escritura 9 pistas'],
+        ],
+        desc: 'Las unidades de cinta IBM 2401 fueron el principal medio de almacenamiento masivo del System/360. Utilizaban cintas de ½ pulgada con 9 pistas y grabación de alta densidad, permitiendo el procesamiento por lotes de grandes volúmenes de datos.'
+      },
+      consola: {
+        title: 'Consola del Operador',
+        subtitle: 'IBM 1052 · Teletipo de control',
+        specs: [
+          ['Tipo', 'Teletipo electromecánico'],
+          ['Interfaz', 'Canal de consola'],
+          ['Velocidad', '134.5 bps (10 cps)'],
+          ['Función', 'Control e impresión'],
+          ['Teclado', 'Alfanumérico completo'],
+          ['Papel', 'Rollo continuo de 8.5"'],
+        ],
+        desc: 'La consola IBM 1052 permitía al operador comunicarse con el sistema. Combinaba un teclado de máquina de escribir con una impresora de bola para diálogo e impresión de registros del sistema. Era el punto de control principal del mainframe.'
+      },
+      canal: {
+        title: 'Canales de Entrada/Salida',
+        subtitle: 'Procesadores de E/S dedicados',
+        specs: [
+          ['Tipo', 'Canal selector / multiplexor'],
+          ['Cantidad', 'Hasta 7 canales'],
+          ['Dispositivos', 'Hasta 256 por canal'],
+          ['Velocidad', 'Hasta 1.5 MB/s'],
+          ['Función', 'Transferencia autónoma'],
+          ['Interfaz', 'Bus de E/S estándar'],
+        ],
+        desc: 'Los canales de E/S del System/360 fueron una innovación clave: procesadores independientes que gestionaban las transferencias de datos entre la memoria y los periféricos sin intervención de la CPU, liberando al procesador principal para tareas de cálculo.'
+      },
+      vidrio: {
+        title: 'Panel de Visualización Frontal',
+        subtitle: 'Indicadores y control directo',
+        specs: [
+          ['Tipo', 'Panel con lámparas y conmutadores'],
+          ['Lámparas', 'Indicadores de estado'],
+          ['Conmutadores', 'Entrada manual de datos'],
+          ['Función', 'Diagnóstico y control'],
+          ['Tecnología', 'Lámparas incandescentes'],
+          ['Acceso', 'Frontal con bisagra'],
+        ],
+        desc: 'El panel frontal del System/360 mostraba el estado de los registros, la memoria y los canales mediante lámparas indicadoras. Los conmutadores permitían al operador introducir datos manualmente y ejecutar funciones de diagnóstico a bajo nivel.'
+      }
+    };
+
+    // ============================================================
+    // CONFIGURACIÓN BÁSICA
+    // ============================================================
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0a0a0c);
+    scene.fog = new THREE.FogExp2(0x0a0a0c, 0.011);
+
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 120);
+    camera.position.set(7, 4.5, 12);
+    camera.lookAt(0, 1.8, 0);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.15;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    document.body.appendChild(renderer.domElement);
+
+    // Entorno PMREM para reflejos realistas
+    const pmremGenerator = new THREE.PMREMGenerator(renderer);
+    pmremGenerator.compileEquirectangularShader();
+    const envMap = pmremGenerator.fromScene(new RoomEnvironment(renderer), 0.04).texture;
+    scene.environment = envMap;
+
+    // Controles orbitales
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, 1.8, 0);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.06;
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 0.7;
+    controls.maxPolarAngle = Math.PI / 2.05;
+    controls.minDistance = 3;
+    controls.maxDistance = 28;
+    controls.enableZoom = true;
+    controls.zoomSpeed = 0.8;
+
+    // ============================================================
+    // ILUMINACIÓN CINEMATOGRÁFICA
+    // ============================================================
+    scene.add(new THREE.AmbientLight(0x404050, 0.5));
+
+    const hemiLight = new THREE.HemisphereLight(0x8a9bb0, 0x2a2a2e, 0.85);
+    scene.add(hemiLight);
+
+    const keyLight = new THREE.DirectionalLight(0xffeedd, 2.0);
+    keyLight.position.set(5, 9, 6);
+    keyLight.castShadow = true;
+    keyLight.receiveShadow = true;
+    keyLight.shadow.mapSize.width = 2048;
+    keyLight.shadow.mapSize.height = 2048;
+    keyLight.shadow.camera.near = 1;
+    keyLight.shadow.camera.far = 30;
+    keyLight.shadow.camera.left = -10;
+    keyLight.shadow.camera.right = 10;
+    keyLight.shadow.camera.top = 10;
+    keyLight.shadow.camera.bottom = -5;
+    keyLight.shadow.bias = -0.0004;
+    keyLight.shadow.radius = 5;
+    scene.add(keyLight);
+
+    const fillLight = new THREE.DirectionalLight(0xffccaa, 0.6);
+    fillLight.position.set(-7, 4, -4);
+    scene.add(fillLight);
+
+    const accentLight1 = new THREE.PointLight(0xffaa66, 30, 9);
+    accentLight1.position.set(2, 2.5, 2.5);
+    scene.add(accentLight1);
+
+    const accentLight2 = new THREE.PointLight(0xffaa66, 22, 9);
+    accentLight2.position.set(-2.5, 2.8, 1.5);
+    scene.add(accentLight2);
+
+    const rimLight = new THREE.PointLight(0x6688cc, 20, 14);
+    rimLight.position.set(0, 3, -6);
+    scene.add(rimLight);
+
+    // ============================================================
+    // TEXTURAS PROCEDURALES
+    // ============================================================
+    function createMetalTexture(baseColor, size = 512) {
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = baseColor;
+      ctx.fillRect(0, 0, size, size);
+      // Grano metálico
+      const img = ctx.getImageData(0, 0, size, size);
+      const d = img.data;
+      for (let i = 0; i < d.length; i += 4) {
+        const n = (Math.random() - 0.5) * 28;
+        d[i] = Math.min(255, Math.max(0, d[i] + n));
+        d[i+1] = Math.min(255, Math.max(0, d[i+1] + n));
+        d[i+2] = Math.min(255, Math.max(0, d[i+2] + n));
+      }
+      ctx.putImageData(img, 0, 0);
+      // Líneas de desgaste
+      ctx.strokeStyle = 'rgba(0,0,0,0.07)';
+      ctx.lineWidth = 1;
+      for (let i = 0; i < 50; i++) {
+        ctx.beginPath();
+        const y = Math.random() * size;
+        ctx.moveTo(0, y);
+        ctx.lineTo(size, y + (Math.random() - 0.5) * 25);
+        ctx.stroke();
+      }
+      // Manchas de pulido
+      for (let i = 0; i < 6; i++) {
+        const x = Math.random() * size, y = Math.random() * size;
+        const r = 20 + Math.random() * 40;
+        const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+        g.addColorStop(0, 'rgba(255,255,255,0.06)');
+        g.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fill();
+      }
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(2, 2);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    function createRoughnessMap(size = 256) {
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      const img = ctx.createImageData(size, size);
+      const d = img.data;
+      for (let i = 0; i < d.length; i += 4) {
+        const v = 90 + Math.random() * 130;
+        d[i] = d[i+1] = d[i+2] = v;
+        d[i+3] = 255;
+      }
+      ctx.putImageData(img, 0, 0);
+      for (let i = 0; i < 12; i++) {
+        const x = Math.random()*size, y = Math.random()*size, r = 10+Math.random()*35;
+        const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+        g.addColorStop(0, 'rgba(50,50,50,0.7)');
+        g.addColorStop(1, 'rgba(50,50,50,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fill();
+      }
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      return tex;
+    }
+
+    function createFloorTexture() {
+      const size = 512;
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#18181c';
+      ctx.fillRect(0, 0, size, size);
+      ctx.strokeStyle = '#2a2a32';
+      ctx.lineWidth = 3;
+      const step = size / 4;
+      for (let i = 0; i <= 4; i++) {
+        ctx.beginPath(); ctx.moveTo(i*step, 0); ctx.lineTo(i*step, size); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, i*step); ctx.lineTo(size, i*step); ctx.stroke();
+      }
+      const img = ctx.getImageData(0, 0, size, size);
+      const d = img.data;
+      for (let i = 0; i < d.length; i += 4) {
+        const n = (Math.random() - 0.5) * 14;
+        d[i] += n; d[i+1] += n; d[i+2] += n;
+      }
+      ctx.putImageData(img, 0, 0);
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(7, 7);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    function createLabelTexture(text, subtext = '') {
+      const canvas = document.createElement('canvas');
+      canvas.width = 512; canvas.height = 256;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#2e2620';
+      ctx.fillRect(0, 0, 512, 256);
+      ctx.strokeStyle = '#c9a45c';
+      ctx.lineWidth = 5;
+      ctx.strokeRect(8, 8, 496, 240);
+      ctx.fillStyle = '#e8dcc8';
+      ctx.font = 'bold 40px "Courier New", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(text, 256, 115);
+      if (subtext) {
+        ctx.font = '22px "Courier New", monospace';
+        ctx.fillStyle = '#b0a58c';
+        ctx.fillText(subtext, 256, 185);
+      }
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    // ============================================================
+    // MATERIALES PBR
+    // ============================================================
+    const metalTex = createMetalTexture('#5a5a62');
+    const metalRough = createRoughnessMap();
+
+    const matMetalBase = new THREE.MeshStandardMaterial({
+      map: metalTex, roughnessMap: metalRough,
+      roughness: 0.42, metalness: 0.88, color: 0x909098, envMapIntensity: 0.9,
+    });
+    const matMetalDark = new THREE.MeshStandardMaterial({
+      map: metalTex, roughnessMap: metalRough,
+      roughness: 0.58, metalness: 0.92, color: 0x4a4a52, envMapIntensity: 0.65,
+    });
+    const matMetalLight = new THREE.MeshStandardMaterial({
+      map: metalTex, roughness: 0.32, metalness: 0.82,
+      color: 0xb0b0b8, envMapIntensity: 1.0,
+    });
+    const matBlackPlastic = new THREE.MeshStandardMaterial({
+      color: 0x18181c, roughness: 0.72, metalness: 0.1,
+    });
+    const matCopper = new THREE.MeshStandardMaterial({
+      color: 0xb87333, roughness: 0.32, metalness: 0.96, envMapIntensity: 1.1,
+    });
+    const matTape = new THREE.MeshStandardMaterial({
+      color: 0x2a1a0a, roughness: 0.78, metalness: 0.0,
+    });
+    const matGold = new THREE.MeshStandardMaterial({
+      color: 0xc9a45c, roughness: 0.22, metalness: 0.96, envMapIntensity: 1.3,
+    });
+    const matCeramic = new THREE.MeshStandardMaterial({
+      color: 0xd8d0c0, roughness: 0.48, metalness: 0.0,
+    });
+    const matGlass = new THREE.MeshPhysicalMaterial({
+      color: 0x2a3a4a, transmission: 0.8, transparent: true, opacity: 0.35,
+      roughness: 0.08, metalness: 0.05, clearcoat: 1.0, clearcoatRoughness: 0.08,
+      envMapIntensity: 1.3,
+    });
+
+    // Materiales emisivos
+    const matTubeGlow = new THREE.MeshStandardMaterial({
+      color: 0xffaa66, emissive: 0xff6600, emissiveIntensity: 1.6,
+      roughness: 0.3, metalness: 0.2,
+    });
+    const matLightRed = new THREE.MeshStandardMaterial({
+      color: 0xff2200, emissive: 0xff2200, emissiveIntensity: 2.0, roughness: 0.4,
+    });
+    const matLightGreen = new THREE.MeshStandardMaterial({
+      color: 0x22ff44, emissive: 0x22ff44, emissiveIntensity: 1.8, roughness: 0.4,
+    });
+    const matLightAmber = new THREE.MeshStandardMaterial({
+      color: 0xffaa00, emissive: 0xff8800, emissiveIntensity: 2.2, roughness: 0.4,
+    });
+
+    // ============================================================
+    // GRUPO PRINCIPAL
+    // ============================================================
+    const mainframeGroup = new THREE.Group();
+    scene.add(mainframeGroup);
+
+    // Suelo
+    const floor = new THREE.Mesh(
+      new THREE.CircleGeometry(20, 64),
+      new THREE.MeshStandardMaterial({
+        map: createFloorTexture(), roughness: 0.85, metalness: 0.12,
+      })
+    );
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -0.01;
+    floor.receiveShadow = true;
+    scene.add(floor);
+
+    // ============================================================
+    // FUNCIÓN: CREAR GABINETE DETALLADO
+    // ============================================================
+    function createCabinet(w, h, d, colorMat, posX, posY, posZ, deviceKey) {
+      const group = new THREE.Group();
+
+      // Cuerpo principal
+      const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), colorMat);
+      body.castShadow = true; body.receiveShadow = true;
+      body.position.y = h / 2;
+      body.userData.device = deviceKey;
+      group.add(body);
+
+      // Marco frontal
+      const frame = new THREE.Mesh(
+        new THREE.BoxGeometry(w * 0.96, h * 0.96, d * 0.08),
+        matMetalDark
+      );
+      frame.castShadow = true; frame.receiveShadow = true;
+      frame.position.set(0, h/2, d/2);
+      frame.userData.device = deviceKey;
+      group.add(frame);
+
+      // Panel frontal con bisel
+      const panel = new THREE.Mesh(
+        new THREE.BoxGeometry(w * 0.88, h * 0.88, 0.03),
+        matMetalBase
+      );
+      panel.castShadow = true; panel.receiveShadow = true;
+      panel.position.set(0, h/2, d/2 + 0.03);
+      panel.userData.device = deviceKey;
+      group.add(panel);
+
+      // Rejillas de ventilación (ranuras)
+      for (let i = 0; i < 10; i++) {
+        const vent = new THREE.Mesh(
+          new THREE.BoxGeometry(w * 0.68, 0.035, 0.015),
+          matBlackPlastic
+        );
+        vent.castShadow = true; vent.receiveShadow = true;
+        vent.position.set(0, h * 0.12 + i * (h * 0.075), d/2 + 0.05);
+        vent.userData.device = deviceKey;
+        group.add(vent);
+      }
+
+      // Tornillos
+      const screwGeo = new THREE.CylinderGeometry(0.035, 0.035, 0.05, 8);
+      [[-w/2+0.13, h-0.13], [w/2-0.13, h-0.13], [-w/2+0.13, 0.13], [w/2-0.13, 0.13]].forEach(p => {
+        const s = new THREE.Mesh(screwGeo, matGold);
+        s.castShadow = true; s.receiveShadow = true;
+        s.position.set(p[0], p[1], d/2 + 0.06);
+        s.rotation.x = Math.PI/2;
+        s.userData.device = deviceKey;
+        group.add(s);
+      });
+
+      // Bisagras laterales
+      const hingeGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.12, 8);
+      [-w/2-0.02, w/2+0.02].forEach((x, idx) => {
+        const hinge = new THREE.Mesh(hingeGeo, matMetalLight);
+        hinge.castShadow = true; hinge.receiveShadow = true;
+        hinge.position.set(x, h * (idx === 0 ? 0.85 : 0.15), d/2 - 0.04);
+        hinge.userData.device = deviceKey;
+        group.add(hinge);
+      });
+
+      // Etiqueta/placa identificativa
+      const labelGeo = new THREE.PlaneGeometry(0.4, 0.18);
+      const labelTex = createLabelTexture(
+        deviceKey === 'cpu' ? 'CPU' : deviceKey === 'memoria' ? 'MEMORIA' : 'CANAL E/S',
+        'IBM SYSTEM/360'
+      );
+      const labelMat = new THREE.MeshStandardMaterial({ map: labelTex, side: THREE.DoubleSide, roughness: 0.5, metalness: 0.7 });
+      const label = new THREE.Mesh(labelGeo, labelMat);
+      label.position.set(0, h * 0.92, d/2 + 0.055);
+      label.userData.device = deviceKey;
+      group.add(label);
+
+      group.position.set(posX, posY, posZ);
+      return group;
+    }
+
+    // ============================================================
+    // CONSTRUCCIÓN: GABINETES
+    // ============================================================
+    const cpuCabinet = createCabinet(1.7, 2.3, 1.3, matMetalBase, 0, 0, 0, 'cpu');
+    mainframeGroup.add(cpuCabinet);
+
+    const leftCab1 = createCabinet(1.25, 2.05, 1.1, matMetalDark, -2.1, 0, 0.3, 'memoria');
+    const leftCab2 = createCabinet(1.25, 2.05, 1.1, matMetalDark, -3.55, 0, 0.3, 'memoria');
+    mainframeGroup.add(leftCab1, leftCab2);
+
+    const rightCab1 = createCabinet(1.25, 2.05, 1.1, matMetalDark, 2.1, 0, 0.3, 'canal');
+    const rightCab2 = createCabinet(1.25, 2.05, 1.1, matMetalDark, 3.55, 0, 0.3, 'canal');
+    mainframeGroup.add(rightCab1, rightCab2);
+
+    // ============================================================
+    // TUBOS DE VACÍO / LÁMPARAS TRAS PANELES
+    // ============================================================
+    function addTubesToCabinet(cabinet, count, w, h, d, deviceKey) {
+      const tubeGeo = new THREE.CylinderGeometry(0.055, 0.055, 0.22, 8);
+      const tubes = new THREE.InstancedMesh(tubeGeo, matTubeGlow, count);
+      tubes.castShadow = true; tubes.receiveShadow = true;
+      const dummy = new THREE.Object3D();
+      for (let i = 0; i < count; i++) {
+        const col = i % 4;
+        const row = Math.floor(i / 4);
+        dummy.position.set(-0.35 + col * 0.24, 0.75 + row * 0.28, d/2 + 0.04);
+        dummy.updateMatrix();
+        tubes.setMatrixAt(i, dummy.matrix);
+      }
+      tubes.userData.device = deviceKey;
+      cabinet.add(tubes);
+    }
+    addTubesToCabinet(cpuCabinet, 12, 1.7, 2.3, 1.3, 'cpu');
+    addTubesToCabinet(leftCab1, 8, 1.25, 2.05, 1.1, 'memoria');
+    addTubesToCabinet(leftCab2, 8, 1.25, 2.05, 1.1, 'memoria');
+    addTubesToCabinet(rightCab1, 8, 1.25, 2.05, 1.1, 'canal');
+    addTubesToCabinet(rightCab2, 8, 1.25, 2.05, 1.1, 'canal');
+
+    // ============================================================
+    // PANEL DE VISUALIZACIÓN FRONTAL (en CPU)
+    // ============================================================
+    const displayPanel = new THREE.Group();
+    const displayBase = new THREE.Mesh(
+      new THREE.BoxGeometry(0.9, 0.5, 0.06),
+      matBlackPlastic
+    );
+    displayBase.castShadow = true; displayBase.receiveShadow = true;
+    displayBase.userData.device = 'vidrio';
+    displayPanel.add(displayBase);
+
+    // Lámparas indicadoras
+    const lampGeo = new THREE.SphereGeometry(0.025, 8, 8);
+    for (let i = 0; i < 20; i++) {
+      const col = i % 10;
+      const row = Math.floor(i / 10);
+      const lampMat = (i % 5 === 0) ? matLightRed : (i % 3 === 0) ? matLightGreen : matLightAmber;
+      const lamp = new THREE.Mesh(lampGeo, lampMat);
+      lamp.position.set(-0.4 + col * 0.09, 0.1 - row * 0.13, 0.04);
+      lamp.userData.device = 'vidrio';
+      displayPanel.add(lamp);
+    }
+    displayPanel.position.set(0, 1.7, 0.7);
+    cpuCabinet.add(displayPanel);
+
+    // ============================================================
+    // UNIDADES DE CINTA
+    // ============================================================
+    function createTapeDrive(posX, posZ, deviceKey) {
+      const group = new THREE.Group();
+      const w = 1.05, h = 1.9, d = 0.85;
+
+      // Cuerpo
+      const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), matMetalDark);
+      body.castShadow = true; body.receiveShadow = true;
+      body.position.y = h/2;
+      body.userData.device = deviceKey;
+      group.add(body);
+
+      // Panel frontal
+      const panel = new THREE.Mesh(
+        new THREE.BoxGeometry(w * 0.9, h * 0.92, 0.04),
+        matMetalBase
+      );
+      panel.castShadow = true; panel.receiveShadow = true;
+      panel.position.set(0, h/2, d/2 + 0.02);
+      panel.userData.device = deviceKey;
+      group.add(panel);
+
+      // Ventana de visualización
+      const window = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.7, 0.4),
+        matGlass
+      );
+      window.position.set(0, h * 0.72, d/2 + 0.045);
+      window.userData.device = deviceKey;
+      group.add(window);
+
+      // Carretes
+      const reelGeo = new THREE.CylinderGeometry(0.26, 0.26, 0.11, 24);
+      const reel1 = new THREE.Mesh(reelGeo, matCopper);
+      reel1.castShadow = true; reel1.receiveShadow = true;
+      reel1.position.set(-0.26, h * 0.62, d/2 + 0.12);
+      reel1.rotation.x = Math.PI/2;
+      reel1.userData.device = deviceKey;
+      group.add(reel1);
+
+      const reel2 = new THREE.Mesh(reelGeo, matCopper);
+      reel2.castShadow = true; reel2.receiveShadow = true;
+      reel2.position.set(0.26, h * 0.62, d/2 + 0.12);
+      reel2.rotation.x = Math.PI/2;
+      reel2.userData.device = deviceKey;
+      group.add(reel2);
+
+      // Cinta
+      const tape = new THREE.Mesh(
+        new THREE.TorusGeometry(0.26, 0.035, 8, 32),
+        matTape
+      );
+      tape.castShadow = true; tape.receiveShadow = true;
+      tape.position.set(0, h * 0.62, d/2 + 0.12);
+      tape.rotation.x = Math.PI/2;
+      tape.scale.set(1.3, 1.3, 0.5);
+      tape.userData.device = deviceKey;
+      group.add(tape);
+
+      // Brazos guía
+      const armGeo = new THREE.CylinderGeometry(0.035, 0.035, 0.55, 8);
+      const arm1 = new THREE.Mesh(armGeo, matMetalLight);
+      arm1.castShadow = true; arm1.receiveShadow = true;
+      arm1.position.set(-0.26, h * 0.62, d/2 + 0.24);
+      arm1.rotation.z = Math.PI/2;
+      arm1.userData.device = deviceKey;
+      group.add(arm1);
+
+      const arm2 = arm1.clone();
+      arm2.position.x = 0.26;
+      arm2.userData.device = deviceKey;
+      group.add(arm2);
+
+      // Etiqueta
+      const labelMat = new THREE.MeshStandardMaterial({
+        map: createLabelTexture('UNISERVO', 'IBM 2401'),
+        side: THREE.DoubleSide, roughness: 0.5, metalness: 0.6,
+      });
+      const label = new THREE.Mesh(new THREE.PlaneGeometry(0.35, 0.16), labelMat);
+      label.position.set(0, h * 0.25, d/2 + 0.06);
+      label.userData.device = deviceKey;
+      group.add(label);
+
+      // Luces de estado
+      const statusLight = new THREE.Mesh(
+        new THREE.SphereGeometry(0.03, 8, 8), matLightGreen
+      );
+      statusLight.position.set(0.35, h * 0.9, d/2 + 0.06);
+      statusLight.userData.device = deviceKey;
+      group.add(statusLight);
+
+      group.position.set(posX, 0, posZ);
+      group.userData = { reels: [reel1, reel2], tape, deviceKey };
+      return group;
+    }
+
+    const tape1 = createTapeDrive(-5.0, 1.6, 'cinta');
+    const tape2 = createTapeDrive(-5.0, 0.3, 'cinta');
+    mainframeGroup.add(tape1, tape2);
+
+    // ============================================================
+    // CONSOLA DE CONTROL
+    // ============================================================
+    const consoleGroup = new THREE.Group();
+
+    // Mesa
+    const desk = new THREE.Mesh(
+      new THREE.BoxGeometry(2.0, 0.14, 1.0), matMetalDark
+    );
+    desk.castShadow = true; desk.receiveShadow = true;
+    desk.position.y = 0.9;
+    desk.userData.device = 'consola';
+    consoleGroup.add(desk);
+
+    // Patas
+    const legGeo = new THREE.CylinderGeometry(0.055, 0.055, 0.9, 8);
+    [[-0.8, -0.4], [0.8, -0.4], [-0.8, 0.4], [0.8, 0.4]].forEach(p => {
+      const leg = new THREE.Mesh(legGeo, matMetalLight);
+      leg.castShadow = true; leg.receiveShadow = true;
+      leg.position.set(p[0], 0.45, p[1]);
+      leg.userData.device = 'consola';
+      consoleGroup.add(leg);
+    });
+
+    // Panel de control inclinado
+    const controlPanel = new THREE.Mesh(
+      new THREE.BoxGeometry(1.8, 0.5, 0.55), matMetalBase
+    );
+    controlPanel.castShadow = true; controlPanel.receiveShadow = true;
+    controlPanel.position.set(0, 1.22, -0.2);
+    controlPanel.rotation.x = -0.35;
+    controlPanel.userData.device = 'consola';
+    consoleGroup.add(controlPanel);
+
+    // Interruptores
+    const switchGeo = new THREE.BoxGeometry(0.05, 0.07, 0.035);
+    for (let i = 0; i < 20; i++) {
+      const col = i % 10, row = Math.floor(i / 10);
+      const sw = new THREE.Mesh(switchGeo, matBlackPlastic);
+      sw.castShadow = true; sw.receiveShadow = true;
+      sw.position.set(-0.78 + col * 0.17, 1.26 + row * 0.13, -0.1);
+      sw.rotation.x = -0.35;
+      sw.userData.device = 'consola';
+      consoleGroup.add(sw);
+    }
+
+    // Luces indicadoras
+    const indicatorLights = [];
+    for (let i = 0; i < 12; i++) {
+      const col = i % 6, row = Math.floor(i / 6);
+      const mat = (i % 4 === 0) ? matLightRed : (i % 3 === 0) ? matLightGreen : matLightAmber;
+      const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 8), mat);
+      lamp.position.set(-0.55 + col * 0.18, 1.16 + row * 0.1, 0.08);
+      lamp.userData.device = 'consola';
+      consoleGroup.add(lamp);
+      indicatorLights.push(lamp);
+    }
+
+    // Teletipo
+    const teletype = new THREE.Mesh(
+      new THREE.BoxGeometry(0.85, 0.32, 0.6), matCeramic
+    );
+    teletype.castShadow = true; teletype.receiveShadow = true;
+    teletype.position.set(0.75, 1.0, 0.28);
+    teletype.userData.device = 'consola';
+    consoleGroup.add(teletype);
+
+    // Teclado
+    const keyboard = new THREE.Mesh(
+      new THREE.BoxGeometry(0.6, 0.03, 0.22), matBlackPlastic
+    );
+    keyboard.castShadow = true; keyboard.receiveShadow = true;
+    keyboard.position.set(0.75, 1.18, 0.34);
+    keyboard.userData.device = 'consola';
+    consoleGroup.add(keyboard);
+
+    // Papel de impresión
+    const paper = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.4, 0.25), matCeramic
+    );
+    paper.rotation.x = -Math.PI/2;
+    paper.position.set(0.75, 1.17, 0.05);
+    paper.userData.device = 'consola';
+    consoleGroup.add(paper);
+
+    consoleGroup.position.set(0, 0, 1.9);
+    mainframeGroup.add(consoleGroup);
+    consoleGroup.userData = { indicatorLights };
+
+    // ============================================================
+    // CABLEADO
+    // ============================================================
+    function createCable(points, radius = 0.035, color = 0x2a2a2e) {
+      const curve = new THREE.CatmullRomCurve3(points);
+      const tube = new THREE.Mesh(
+        new THREE.TubeGeometry(curve, 32, radius, 8, false),
+        new THREE.MeshStandardMaterial({ color, roughness: 0.8, metalness: 0.2 })
+      );
+      tube.castShadow = true; tube.receiveShadow = true;
+      return tube;
+    }
+
+    mainframeGroup.add(createCable([
+      new THREE.Vector3(-2.1, 0.08, 0.9),
+      new THREE.Vector3(-2.6, 0.08, 1.6),
+      new THREE.Vector3(-3.55, 0.08, 1.3),
+    ]));
+    mainframeGroup.add(createCable([
+      new THREE.Vector3(2.1, 0.08, 0.9),
+      new THREE.Vector3(2.6, 0.08, 1.7),
+      new THREE.Vector3(3.55, 0.08, 1.3),
+    ]));
+    mainframeGroup.add(createCable([
+      new THREE.Vector3(0, 0.08, 0.9),
+      new THREE.Vector3(0.4, 0.08, 2.3),
+      new THREE.Vector3(-0.4, 0.08, 2.5),
+    ]));
+
+    // ============================================================
+    // PLACA CONMEMORATIVA
+    // ============================================================
+    const plaqueMat = new THREE.MeshStandardMaterial({
+      map: createLabelTexture('IBM SYSTEM/360', '1964 · Primera familia compatible'),
+      side: THREE.DoubleSide, roughness: 0.4, metalness: 0.8,
+    });
+    const plaque = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 0.65), plaqueMat);
+    plaque.rotation.x = -Math.PI/2;
+    plaque.rotation.z = 0.1;
+    plaque.position.set(2.6, 0.02, 3.6);
+    plaque.receiveShadow = true;
+    mainframeGroup.add(plaque);
+
+    // ============================================================
+    // POST-PROCESADO
+    // ============================================================
+    const composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera));
+
+    const bloomPass = new UnrealBloomPass(
+      new THREE.Vector2(window.innerWidth, window.innerHeight),
+      1.1, 0.4, 0.85
+    );
+    bloomPass.threshold = 0.2;
+    bloomPass.strength = 0.75;
+    bloomPass.radius = 0.5;
+    composer.addPass(bloomPass);
+
+    const fxaaPass = new ShaderPass(FXAAShader);
+    const pr = renderer.getPixelRatio();
+    fxaaPass.material.uniforms['resolution'].value.x = 1 / (window.innerWidth * pr);
+    fxaaPass.material.uniforms['resolution'].value.y = 1 / (window.innerHeight * pr);
+    composer.addPass(fxaaPass);
+
+    // ============================================================
+    // INTERACCIÓN: HOVER Y CLIC EN DISPOSITIVOS
+    // ============================================================
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    const tooltip = document.getElementById('device-tooltip');
+    let hoveredDevice = null;
+    let tooltipPinned = false;
+    let pinnedDevice = null;
+
+    // Recolectar todos los objetos con userData.device
+    const interactiveObjects = [];
+    scene.traverse(obj => {
+      if (obj.isMesh && obj.userData.device) {
+        interactiveObjects.push(obj);
+      }
+    });
+
+    function showTooltip(deviceKey, screenX, screenY) {
+      const info = DEVICE_INFO[deviceKey];
+      if (!info) return;
+
+      let html = `<h3>${info.title}</h3>`;
+      html += `<div class="tt-sub">${info.subtitle}</div>`;
+      info.specs.forEach(([k, v]) => {
+        html += `<div class="tt-row"><span>${k}</span><span>${v}</span></div>`;
+      });
+      html += `<div class="tt-desc">${info.desc}</div>`;
+      tooltip.innerHTML = html;
+
+      // Posicionar
+      let x = screenX + 18;
+      let y = screenY + 18;
+      const rect = tooltip.getBoundingClientRect();
+      if (x + rect.width > window.innerWidth - 10) x = screenX - rect.width - 18;
+      if (y + rect.height > window.innerHeight - 10) y = screenY - rect.height - 18;
+      if (x < 10) x = 10;
+      if (y < 10) y = 10;
+
+      tooltip.style.left = `${x}px`;
+      tooltip.style.top = `${y}px`;
+      tooltip.classList.add('visible');
+    }
+
+    function hideTooltip() {
+      if (!tooltipPinned) {
+        tooltip.classList.remove('visible');
+      }
+    }
+
+    // Eventos de ratón
+    window.addEventListener('pointermove', (e) => {
+      mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects(interactiveObjects, false);
+
+      if (intersects.length > 0) {
+        const obj = intersects[0].object;
+        const deviceKey = obj.userData.device;
+        if (deviceKey) {
+          if (hoveredDevice !== deviceKey) {
+            hoveredDevice = deviceKey;
+            showTooltip(deviceKey, e.clientX, e.clientY);
+            document.body.style.cursor = 'pointer';
+          } else {
+            // Actualizar posición
+            showTooltip(deviceKey, e.clientX, e.clientY);
+          }
+        }
+      } else {
+        if (hoveredDevice !== null && !tooltipPinned) {
+          hoveredDevice = null;
+          hideTooltip();
+          document.body.style.cursor = 'default';
+        }
+      }
+    });
+
+    // Clic para fijar/desfijar tooltip
+    window.addEventListener('pointerdown', (e) => {
+      if (e.target.closest('#controls') || e.target.closest('#info-panel')) return;
+
+      mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects(interactiveObjects, false);
+
+      if (intersects.length > 0) {
+        const deviceKey = intersects[0].object.userData.device;
+        if (deviceKey) {
+          if (tooltipPinned && pinnedDevice === deviceKey) {
+            // Desfijar
+            tooltipPinned = false;
+            pinnedDevice = null;
+            hideTooltip();
+          } else {
+            // Fijar
+            tooltipPinned = true;
+            pinnedDevice = deviceKey;
+            showTooltip(deviceKey, e.clientX, e.clientY);
+          }
+        }
+      } else {
+        // Clic en vacío: desfijar
+        if (tooltipPinned) {
+          tooltipPinned = false;
+          pinnedDevice = null;
+          hideTooltip();
+        }
+      }
+    });
+
+    // ============================================================
+    // ETIQUETAS FLOTANTES
+    // ============================================================
+    const labelMarkers = [];
+    function createLabelMarker(text, position3D) {
+      const el = document.createElement('div');
+      el.className = 'label-marker';
+      el.textContent = text;
+      document.body.appendChild(el);
+      labelMarkers.push({ element: el, position: position3D.clone() });
+    }
+
+    createLabelMarker('CPU · Unidad Central', new THREE.Vector3(0, 2.6, 0));
+    createLabelMarker('Memoria de Núcleo', new THREE.Vector3(-2.1, 2.3, 0.3));
+    createLabelMarker('Unidad de Cinta IBM 2401', new THREE.Vector3(-5.0, 2.1, 0.9));
+    createLabelMarker('Consola del Operador', new THREE.Vector3(0, 1.9, 2.3));
+    createLabelMarker('Canales de E/S', new THREE.Vector3(3.55, 2.3, 0.3));
+    createLabelMarker('Panel de Visualización', new THREE.Vector3(0, 2.05, 0.75));
+
+    // ============================================================
+    // CONTROLES DE INTERFAZ
+    // ============================================================
+    let labelsVisible = false;
+    let exploded = false;
+    let lightsOn = true;
+    let tapesMoving = true;
+    let autoRotateEnabled = true;
+
+    const btnRotate = document.getElementById('btn-rotate');
+    const btnLabels = document.getElementById('btn-labels');
+    const btnExplode = document.getElementById('btn-explode');
+    const btnLights = document.getElementById('btn-lights');
+    const btnTape = document.getElementById('btn-tape');
+    const btnReset = document.getElementById('btn-reset');
+    const hoverHint = document.getElementById('hover-hint');
+
+    // Mostrar pista de hover al inicio
+    setTimeout(() => {
+      hoverHint.classList.add('visible');
+      setTimeout(() => hoverHint.classList.remove('visible'), 5000);
+    }, 1500);
+
+    btnRotate.addEventListener('click', () => {
+      autoRotateEnabled = !autoRotateEnabled;
+      controls.autoRotate = autoRotateEnabled;
+      btnRotate.classList.toggle('active', autoRotateEnabled);
+    });
+
+    btnLabels.addEventListener('click', () => {
+      labelsVisible = !labelsVisible;
+      btnLabels.classList.toggle('active', labelsVisible);
+    });
+
+    btnExplode.addEventListener('click', () => {
+      exploded = !exploded;
+      btnExplode.classList.toggle('active', exploded);
+
+      const duration = 0.6;
+      const startTime = performance.now();
+
+      const targets = exploded ? {
+        cpu: new THREE.Vector3(0, 0.5, 0),
+        l1: new THREE.Vector3(-2.9, 0.3, -0.5),
+        l2: new THREE.Vector3(-4.7, 0.2, -0.8),
+        r1: new THREE.Vector3(2.9, 0.3, -0.5),
+        r2: new THREE.Vector3(4.7, 0.2, -0.8),
+        t1: new THREE.Vector3(-6.8, 0.2, 2.6),
+        t2: new THREE.Vector3(-6.8, 0.2, 1.0),
+        console: new THREE.Vector3(0, 0.2, 3.6),
+      } : {
+        cpu: new THREE.Vector3(0, 0, 0),
+        l1: new THREE.Vector3(-2.1, 0, 0.3),
+        l2: new THREE.Vector3(-3.55, 0, 0.3),
+        r1: new THREE.Vector3(2.1, 0, 0.3),
+        r2: new THREE.Vector3(3.55, 0, 0.3),
+        t1: new THREE.Vector3(-5.0, 0, 1.6),
+        t2: new THREE.Vector3(-5.0, 0, 0.3),
+        console: new THREE.Vector3(0, 0, 1.9),
+      };
+
+      const starts = {
+        cpu: cpuCabinet.position.clone(),
+        l1: leftCab1.position.clone(),
+        l2: leftCab2.position.clone(),
+        r1: rightCab1.position.clone(),
+        r2: rightCab2.position.clone(),
+        t1: tape1.position.clone(),
+        t2: tape2.position.clone(),
+        console: consoleGroup.position.clone(),
+      };
+
+      function step() {
+        const t = Math.min(1, (performance.now() - startTime) / 1000 / duration);
+        const e = 1 - Math.pow(1 - t, 3);
+        cpuCabinet.position.lerpVectors(starts.cpu, targets.cpu, e);
+        leftCab1.position.lerpVectors(starts.l1, targets.l1, e);
+        leftCab2.position.lerpVectors(starts.l2, targets.l2, e);
+        rightCab1.position.lerpVectors(starts.r1, targets.r1, e);
+        rightCab2.position.lerpVectors(starts.r2, targets.r2, e);
+        tape1.position.lerpVectors(starts.t1, targets.t1, e);
+        tape2.position.lerpVectors(starts.t2, targets.t2, e);
+        consoleGroup.position.lerpVectors(starts.console, targets.console, e);
+        if (t < 1) requestAnimationFrame(step);
+      }
+      step();
+    });
+
+    btnLights.addEventListener('click', () => {
+      lightsOn = !lightsOn;
+      btnLights.classList.toggle('active', !lightsOn);
+      scene.traverse(child => {
+        if (child.isMesh && child.material) {
+          const mats = Array.isArray(child.material) ? child.material : [child.material];
+          mats.forEach(m => {
+            if (m.emissive && m.emissiveIntensity > 0) {
+              m.emissiveIntensity = lightsOn ? (m.userData.baseIntensity || 1.6) : 0.0;
+            }
+          });
+        }
+      });
+    });
+
+    btnTape.addEventListener('click', () => {
+      tapesMoving = !tapesMoving;
+      btnTape.classList.toggle('active', !tapesMoving);
+    });
+
+    btnReset.addEventListener('click', () => {
+      camera.position.set(7, 4.5, 12);
+      controls.target.set(0, 1.8, 0);
+      controls.update();
+      autoRotateEnabled = true;
+      controls.autoRotate = true;
+      btnRotate.classList.add('active');
+    });
+
+    // ============================================================
+    // BUCLE DE ANIMACIÓN
+    // ============================================================
+    const clock = new THREE.Clock();
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      const delta = clock.getDelta();
+      const time = performance.now() / 1000;
+
+      controls.update();
+
+      // Rotación de carretes
+      if (tapesMoving) {
+        [tape1, tape2].forEach(td => {
+          if (td.userData.reels) {
+            td.userData.reels.forEach((reel, idx) => {
+              reel.rotation.z += delta * (idx === 0 ? 1.3 : -1.0);
+            });
+          }
+        });
+      }
+
+      // Parpadeo sutil de lámparas indicadoras
+      if (consoleGroup.userData.indicatorLights) {
+        consoleGroup.userData.indicatorLights.forEach((lamp, i) => {
+          if (lightsOn) {
+            const flicker = 1.5 + Math.sin(time * 4 + i * 0.8) * 0.4;
+            if (lamp.material.emissiveIntensity !== undefined) {
+              lamp.material.emissiveIntensity = flicker;
+            }
+          }
+        });
+      }
+
+      // Actualizar etiquetas HTML
+      if (labelsVisible) {
+        labelMarkers.forEach(m => {
+          const v = m.position.clone();
+          v.project(camera);
+          if (v.z > 1) {
+            m.element.classList.remove('visible');
+          } else {
+            m.element.style.left = `${(v.x * 0.5 + 0.5) * window.innerWidth}px`;
+            m.element.style.top = `${(-v.y * 0.5 + 0.5) * window.innerHeight}px`;
+            m.element.classList.add('visible');
+          }
+        });
+      } else {
+        labelMarkers.forEach(m => m.element.classList.remove('visible'));
+      }
+
+      // Si el tooltip está fijado, actualizar su posición siguiendo al objeto
+      if (tooltipPinned && pinnedDevice) {
+        // Buscar un objeto representativo del dispositivo
+        const representative = interactiveObjects.find(o => o.userData.device === pinnedDevice);
+        if (representative) {
+          const worldPos = new THREE.Vector3();
+          representative.getWorldPosition(worldPos);
+          worldPos.project(camera);
+          if (worldPos.z < 1) {
+            const sx = (worldPos.x * 0.5 + 0.5) * window.innerWidth;
+            const sy = (-worldPos.y * 0.5 + 0.5) * window.innerHeight;
+            showTooltip(pinnedDevice, sx, sy);
+          }
+        }
+      }
+
+      composer.render();
+    }
+
+    animate();
+
+    // ============================================================
+    // REDIMENSIONAMIENTO
+    // ============================================================
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      composer.setSize(window.innerWidth, window.innerHeight);
+      const pr = renderer.getPixelRatio();
+      fxaaPass.material.uniforms['resolution'].value.x = 1 / (window.innerWidth * pr);
+      fxaaPass.material.uniforms['resolution'].value.y = 1 / (window.innerHeight * pr);
+    });
+
+    console.log('IBM System/360 · Reconstrucción museística 3D con información interactiva cargada.');
+  </script>
+</body>
+</html>
