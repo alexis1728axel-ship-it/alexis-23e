@@ -1,0 +1,1518 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Supercomputación, IA y PC Moderna · Museo 3D (2026)</title>
+  <style>
+    :root {
+      --amber: #c9a45c;
+      --cyan: #5cc9c9;
+      --cyan-bright: #8ee0e0;
+      --violet: #a07cc9;
+      --bg-dark: #0d0d12;
+      --panel-bg: rgba(18, 18, 24, 0.92);
+      --text-main: #e8e4d8;
+      --text-dim: #a8a090;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      overflow: hidden;
+      background-color: var(--bg-dark);
+      font-family: 'Courier New', Courier, monospace;
+      color: var(--text-main);
+      cursor: default;
+    }
+
+    #info-panel {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      max-width: 380px;
+      background: var(--panel-bg);
+      backdrop-filter: blur(12px);
+      border-left: 4px solid var(--cyan);
+      padding: 18px 22px;
+      border-radius: 0 12px 12px 0;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    #info-panel h1 {
+      margin: 0 0 4px 0;
+      font-size: 1.7rem;
+      font-weight: 400;
+      letter-spacing: 1.5px;
+      color: #ffffff;
+      font-family: 'Times New Roman', serif;
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
+    }
+
+    #info-panel .subhead {
+      font-size: 0.76rem;
+      color: var(--text-dim);
+      margin-bottom: 12px;
+      border-bottom: 1px solid #3a3a44;
+      padding-bottom: 10px;
+      letter-spacing: 0.5px;
+    }
+
+    #info-panel .spec {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.74rem;
+      margin-bottom: 4px;
+      color: #d0d0d8;
+      line-height: 1.4;
+    }
+
+    #info-panel .spec span:first-child { color: var(--text-dim); flex-shrink: 0; }
+    #info-panel .spec span:last-child { color: #f0f0e8; font-weight: 600; text-align: right; padding-left: 8px; }
+
+    #device-tooltip {
+      position: absolute;
+      max-width: 360px;
+      min-width: 260px;
+      background: rgba(14, 14, 20, 0.98);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--cyan);
+      border-radius: 10px;
+      padding: 16px 18px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.9), 0 0 20px rgba(92, 201, 201, 0.15);
+      pointer-events: none;
+      z-index: 1000;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      color: var(--text-main);
+    }
+
+    #device-tooltip.visible { opacity: 1; transform: translateY(0); }
+
+    #device-tooltip h3 {
+      margin: 0 0 6px 0;
+      font-size: 1.05rem;
+      color: var(--cyan-bright);
+      font-family: 'Times New Roman', serif;
+      letter-spacing: 0.8px;
+      border-bottom: 1px solid rgba(92, 201, 201, 0.3);
+      padding-bottom: 6px;
+    }
+
+    #device-tooltip .tt-sub { font-size: 0.72rem; color: var(--text-dim); margin-bottom: 10px; font-style: italic; }
+
+    #device-tooltip .tt-row {
+      display: flex; justify-content: space-between;
+      font-size: 0.72rem; margin-bottom: 4px; line-height: 1.35; gap: 10px;
+    }
+
+    #device-tooltip .tt-row span:first-child { color: var(--text-dim); flex-shrink: 0; }
+    #device-tooltip .tt-row span:last-child { color: #ffffff; text-align: right; font-weight: 600; }
+
+    #device-tooltip .tt-desc {
+      margin-top: 10px; font-size: 0.7rem; color: #c0c0c8; line-height: 1.45;
+      border-top: 1px solid rgba(92, 201, 201, 0.2); padding-top: 8px;
+      font-family: 'Courier New', monospace;
+    }
+
+    #controls {
+      position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
+      display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;
+      background: rgba(20, 20, 28, 0.9); backdrop-filter: blur(12px);
+      padding: 12px 22px; border-radius: 60px; border: 1px solid #4a4a5a;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.7); z-index: 20; max-width: 95vw;
+    }
+
+    #controls button {
+      background: transparent; border: 1px solid #6a6a7a; color: #e0dcd0;
+      padding: 8px 16px; border-radius: 30px; font-family: 'Courier New', monospace;
+      font-size: 0.72rem; font-weight: 600; letter-spacing: 0.8px; cursor: pointer;
+      transition: all 0.25s ease; text-transform: uppercase; white-space: nowrap;
+    }
+
+    #controls button:hover {
+      background: var(--cyan); border-color: var(--cyan); color: #0a0a10;
+      box-shadow: 0 0 20px rgba(92, 201, 201, 0.6);
+    }
+
+    #controls button.active {
+      background: var(--cyan); border-color: var(--cyan); color: #0a0a10;
+      box-shadow: 0 0 14px rgba(92, 201, 201, 0.45);
+    }
+
+    /* Indicador de zoom */
+    #zoom-indicator {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(14, 14, 20, 0.92);
+      border: 1px solid var(--cyan);
+      border-radius: 20px;
+      padding: 8px 16px;
+      font-size: 0.72rem;
+      color: var(--cyan-bright);
+      z-index: 15;
+      pointer-events: none;
+      letter-spacing: 0.8px;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+      transition: opacity 0.4s ease;
+      opacity: 0;
+    }
+
+    #zoom-indicator.visible { opacity: 1; }
+
+    .label-marker {
+      position: absolute; background: rgba(14, 14, 20, 0.94);
+      border: 1px solid var(--cyan); color: #f0f0e8;
+      padding: 5px 12px; border-radius: 18px; font-size: 0.66rem; font-weight: 600;
+      letter-spacing: 0.6px; white-space: nowrap; pointer-events: none; opacity: 0;
+      transition: opacity 0.3s ease; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.8);
+      z-index: 100; transform: translate(-50%, -100%); margin-top: -10px;
+    }
+
+    .label-marker.visible { opacity: 1; }
+
+    #hover-hint {
+      position: absolute; bottom: 90px; left: 50%; transform: translateX(-50%);
+      background: rgba(14, 14, 20, 0.9); border: 1px solid rgba(92, 201, 201, 0.6);
+      color: var(--cyan-bright); padding: 8px 20px; border-radius: 30px;
+      font-size: 0.72rem; letter-spacing: 1px; pointer-events: none; z-index: 15;
+      opacity: 0; transition: opacity 0.4s ease; text-align: center; backdrop-filter: blur(8px);
+    }
+
+    #hover-hint.visible { opacity: 1; }
+
+    #vignette {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none;
+      background: radial-gradient(circle at center, transparent 45%, rgba(0, 0, 0, 0.55) 100%);
+      z-index: 5;
+    }
+
+    @media (max-width: 800px) {
+      #info-panel { max-width: 240px; padding: 12px 14px; }
+      #info-panel h1 { font-size: 1.2rem; }
+      #info-panel .spec { font-size: 0.66rem; }
+      #controls button { padding: 6px 10px; font-size: 0.6rem; }
+      #controls { gap: 6px; padding: 8px 12px; }
+      #device-tooltip { max-width: 280px; }
+      #hover-hint { font-size: 0.62rem; padding: 6px 14px; }
+      #zoom-indicator { font-size: 0.62rem; padding: 6px 10px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="info-panel">
+    <h1>Era Exaescala · 2026</h1>
+    <div class="subhead">Supercomputación · IA · PC Moderna</div>
+    <div class="spec"><span>Líder TOP500</span> <span>LineShine (China)</span></div>
+    <div class="spec"><span>Rendimiento</span> <span>2.198 Exaflop/s (HPL)</span></div>
+    <div class="spec"><span>Acelerador IA</span> <span>NVIDIA Rubin / AMD MI455X</span></div>
+    <div class="spec"><span>PC moderna</span> <span>Intel Core Ultra 9 + RTX 5090</span></div>
+    <div class="spec"><span>Monitor</span> <span>49" Ultrawide 240 Hz</span></div>
+    <div class="spec"><span>Modelo frontier</span> <span>GPT-6 / Claude Opus 5.5</span></div>
+  </div>
+
+  <div id="device-tooltip"></div>
+  <div id="hover-hint">Arrastra para orbitar · Rueda del ratón para acercar/alejar</div>
+  <div id="zoom-indicator">Zoom: 100%</div>
+
+  <div id="controls">
+    <button id="btn-rotate" class="active">Rotar</button>
+    <button id="btn-labels">Etiquetas</button>
+    <button id="btn-explode">Vista explosionada</button>
+    <button id="btn-lights">Encender/apagar</button>
+    <button id="btn-reset">Reiniciar cámara</button>
+  </div>
+
+  <div id="vignette"></div>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+    import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+    import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+    import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+    import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+    import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
+
+    // ============================================================
+    // BASE DE DATOS
+    // ============================================================
+    const DEVICE_INFO = {
+      lineShine: {
+        title: 'LineShine · Supercomputadora Nº1 (2026)',
+        subtitle: 'Centro Nacional de Supercomputación de Shenzhen (NSCS), China',
+        specs: [
+          ['Rendimiento HPL', '2.198 Exaflop/s'],
+          ['Rendimiento HPCG', '22.00 Petaflop/s (Nº1)'],
+          ['Núcleos totales', '13.789.440'],
+          ['Procesadores', 'LX2 de 304 núcleos @ 1.55 GHz'],
+          ['Arquitectura', 'CPU-only (sin GPU)'],
+          ['Interconexión', 'LingQi (propietaria)'],
+        ],
+        desc: 'LineShine debutó en el Nº1 del TOP500 en junio de 2026, siendo el primer sistema chino en liderar la lista desde 2017. Es el primer sistema en superar los 2 Exaflop/s sostenidos usando únicamente CPUs.'
+      },
+      elCapitan: {
+        title: 'El Capitan · Supercomputadora Exaescala',
+        subtitle: 'Lawrence Livermore National Laboratory (LLNL), EE.UU.',
+        specs: [
+          ['Rendimiento HPL', '1.809 Exaflop/s'],
+          ['Rendimiento HPCG', '17.41 Petaflop/s (Nº2)'],
+          ['Núcleos CPU', '1.069.056'],
+          ['Aceleradores', '44.544 AMD MI300A (APU)'],
+          ['Arquitectura', 'Heterogénea CPU+GPU'],
+          ['Consumo', '~30 MW'],
+        ],
+        desc: 'El Capitan utiliza APUs AMD MI300A que combinan CPU y GPU en un solo paquete, optimizando la coherencia de memoria. Es el arquetipo del diseño heterogéneo que domina la exaescala occidental.'
+      },
+      jupiter: {
+        title: 'JUPITER Booster · Exaescala Europea',
+        subtitle: 'Jülich Supercomputing Centre, Alemania',
+        specs: [
+          ['Rendimiento HPL', '~1 Exaflop/s'],
+          ['Rendimiento FP8', '>40 Exaflop/s'],
+          ['Por nodo', '4× NVIDIA GH200 Grace-Hopper'],
+          ['CPU', '72 núcleos ARM Neoverse V2'],
+          ['GPU', 'H100 (132 SMs, 96 GB HBM3)'],
+        ],
+        desc: 'JUPITER es el primer sistema exaescala de Europa. Cada nodo combina 4 superchips NVIDIA GH200. Destaca por su enorme rendimiento en precisión reducida (FP8) para IA.'
+      },
+      nvidiaRubin: {
+        title: 'NVIDIA Vera Rubin NVL72',
+        subtitle: 'Plataforma de IA y HPC · 2026',
+        specs: [
+          ['Arquitectura', 'Vera CPU + Rubin GPU'],
+          ['Rendimiento NVFP4', '50 Petaflop/s por sistema'],
+          ['Mejora vs Blackwell', '5× inferencia, 3.5× entrenamiento'],
+          ['Memoria', 'HBM4 (2.8× ancho de banda)'],
+          ['Interconexión', 'NVLink 6'],
+        ],
+        desc: 'Vera Rubin es la plataforma de NVIDIA para la era post-Blackwell. Integra seis chips en un diseño extremadamente co-diseñado para IA agéntica y reinforcement learning a escala masiva.'
+      },
+      amdMI455X: {
+        title: 'AMD Instinct MI455X',
+        subtitle: 'Acelerador de IA · 2026',
+        specs: [
+          ['Generación', 'Sucesor de MI355X'],
+          ['Mejora vs MI355X', '10× rendimiento'],
+          ['Objetivo 2027', 'MI500 (1000× en 4 años)'],
+          ['Plataforma', 'Helios (72 GPUs)'],
+          ['Disponibilidad', 'H2 2026'],
+        ],
+        desc: 'AMD presentó la MI455X en CES 2026 como su respuesta a la plataforma Rubin de NVIDIA. Con una mejora de 10× sobre la generación anterior, busca capturar parte del mercado de entrenamiento e inferencia de IA.'
+      },
+      gpt6: {
+        title: 'OpenAI GPT-6 (Familia Astra / Sol / Luna)',
+        subtitle: 'Modelo frontier de IA · 2026',
+        specs: [
+          ['Variantes', 'Astra (flagship), Sol, Luna'],
+          ['Rendimiento', '8× velocidad con Blackwell'],
+          ['Especialidad', 'Razonamiento profundo'],
+          ['Contexto', 'Hasta 1M tokens de salida'],
+          ['Integración', 'NVIDIA Blackwell GPU'],
+        ],
+        desc: 'GPT-6 es la familia de modelos frontier de OpenAI en 2026. Astra es la variante flagship, optimizada para razonamiento complejo y tareas de larga duración.'
+      },
+      claudeOpus: {
+        title: 'Anthropic Claude Opus 5.5',
+        subtitle: 'Modelo frontier de IA · 2026',
+        specs: [
+          ['Especialidad', 'Ingeniería de software'],
+          ['Benchmark RoboColiseum', '76.28 (Nº1 general)'],
+          ['Robustez', '76.47 en imágenes perturbadas'],
+          ['Gobernanza', 'RSP rigurosa'],
+          ['Adopción', 'Barclays (50% de desarrolladores)'],
+        ],
+        desc: 'Claude Opus 5.5 es el modelo de Anthropic que lidera en benchmarks de tareas prácticas de ingeniería y robustez ante perturbaciones.'
+      },
+      modernPC: {
+        title: 'PC de Escritorio Moderna · 2026',
+        subtitle: 'Estación de trabajo de alto rendimiento',
+        specs: [
+          ['CPU', 'Intel Core Ultra 9 285K'],
+          ['GPU', 'NVIDIA RTX 5090 (32 GB GDDR7)'],
+          ['RAM', '64 GB DDR5-7200'],
+          ['Almacenamiento', '4 TB NVMe PCIe 5.0'],
+          ['Refrigeración', 'Líquida AIO 360 mm'],
+          ['Caja', 'ATX Mid-Tower con vidrio templado'],
+          ['Fuente', '1200 W 80+ Platinum'],
+        ],
+        desc: 'Una PC moderna de 2026 combina un procesador Intel Core Ultra 9 con una GPU RTX 5090, capaz de entrenar modelos de IA locales y ejecutar juegos en 4K a 240 Hz. Incluye refrigeración líquida AIO, iluminación RGB y almacenamiento NVMe de última generación.'
+      },
+      monitor: {
+        title: 'Monitor Ultrawide 49"',
+        subtitle: 'Panel OLED curvo · 240 Hz',
+        specs: [
+          ['Tamaño', '49 pulgadas (32:9)'],
+          ['Resolución', '5120 × 1440 (Dual QHD)'],
+          ['Panel', 'OLED QD'],
+          ['Frecuencia', '240 Hz'],
+          ['Tiempo respuesta', '0.03 ms'],
+          ['HDR', 'DisplayHDR True Black 500'],
+          ['Conectividad', 'DP 2.1, HDMI 2.1, USB-C 90W'],
+        ],
+        desc: 'Monitor ultrawide curvo de 49 pulgadas con panel OLED QD, resolución Dual QHD (5120×1440) y 240 Hz. Ideal para productividad y gaming inmersivo. Soporta HDR True Black 500 y conectividad USB-C con carga de 90 W.'
+      },
+      keyboard: {
+        title: 'Teclado Mecánico RGB',
+        subtitle: 'Layout 75% · Hot-swap',
+        specs: [
+          ['Switches', 'Cherry MX2A (lineales)'],
+          ['Layout', '75% (84 teclas)'],
+          ['Iluminación', 'RGB por tecla'],
+          ['Conexión', 'USB-C / Bluetooth 5.3'],
+          ['Hot-swap', 'Sí (3/5 pines)'],
+          ['Material', 'Chasis de aluminio'],
+        ],
+        desc: 'Teclado mecánico de 75% con switches Cherry MX2A lineales, hot-swap y chasis de aluminio. Iluminación RGB por tecla sincronizable con el resto del sistema.'
+      },
+      mouse: {
+        title: 'Ratón Gaming Inalámbrico',
+        subtitle: 'Sensor óptico 32.000 DPI',
+        specs: [
+          ['Sensor', 'Focus Pro 32K'],
+          ['DPI', '100 – 32.000'],
+          ['Encuesta', '8.000 Hz'],
+          ['Peso', '58 g'],
+          ['Batería', '90 horas'],
+          ['Conectividad', 'Lightspeed + Bluetooth'],
+        ],
+        desc: 'Ratón gaming inalámbrico ultraligero de 58 g con sensor de 32.000 DPI y tasa de sondeo de 8.000 Hz. Batería de 90 horas y conectividad dual Lightspeed/Bluetooth.'
+      }
+    };
+
+    // ============================================================
+    // ESCENA
+    // ============================================================
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x1a1a24);
+    scene.fog = new THREE.FogExp2(0x1a1a24, 0.01);
+
+    const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.05, 100);
+    camera.position.set(6.5, 4.5, 9.5);
+    camera.lookAt(0, 1.2, 0);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.15;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    document.body.appendChild(renderer.domElement);
+
+    const pmremGenerator = new THREE.PMREMGenerator(renderer);
+    pmremGenerator.compileEquirectangularShader();
+    const envMap = pmremGenerator.fromScene(new RoomEnvironment(renderer), 0.04).texture;
+    scene.environment = envMap;
+    scene.environmentIntensity = 0.85;
+
+    // ============================================================
+    // CONTROLES DE CÁMARA CON ZOOM AVANZADO
+    // ============================================================
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, 1.2, 0);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+
+    // Rotación automática
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 0.5;
+
+    // Zoom con rueda — configuración amplia
+    controls.enableZoom = true;
+    controls.zoomSpeed = 1.2;        // Velocidad de zoom
+    controls.minDistance = 0.8;       // Muy cerca (permite acercarse a los chips)
+    controls.maxDistance = 30;        // Muy lejos (vista general)
+
+    // Paneo con clic derecho / dos dedos
+    controls.enablePan = true;
+    controls.panSpeed = 1.0;
+    controls.screenSpacePanning = true;
+
+    // Rotación con clic izquierdo
+    controls.enableRotate = true;
+    controls.rotateSpeed = 1.0;
+
+    // Límites de ángulo (permite ver casi desde arriba)
+    controls.maxPolarAngle = Math.PI / 1.9;
+    controls.minPolarAngle = 0.1;
+
+    // ============================================================
+    // INDICADOR DE ZOOM
+    // ============================================================
+    const zoomIndicator = document.getElementById('zoom-indicator');
+    const initialDistance = camera.position.distanceTo(controls.target);
+    let indicatorTimeout;
+
+    function updateZoomIndicator() {
+      const dist = camera.position.distanceTo(controls.target);
+      // Convertir distancia a porcentaje: cerca = 100%, lejos = 0%
+      const pct = Math.round(Math.max(0, Math.min(100, (1 - (dist - controls.minDistance) / (controls.maxDistance - controls.minDistance)) * 100)));
+      zoomIndicator.textContent = `Zoom: ${pct}% · Dist: ${dist.toFixed(1)}m`;
+      zoomIndicator.classList.add('visible');
+      clearTimeout(indicatorTimeout);
+      indicatorTimeout = setTimeout(() => zoomIndicator.classList.remove('visible'), 1500);
+    }
+
+    // Mostrar indicador al hacer zoom
+    renderer.domElement.addEventListener('wheel', updateZoomIndicator, { passive: true });
+
+    // ============================================================
+    // ILUMINACIÓN
+    // ============================================================
+    scene.add(new THREE.AmbientLight(0xffffff, 0.75));
+    const hemi = new THREE.HemisphereLight(0xaaccff, 0x444450, 0.9);
+    scene.add(hemi);
+
+    const key = new THREE.DirectionalLight(0xfff5e6, 2.8);
+    key.position.set(4, 7, 5);
+    key.castShadow = true;
+    key.shadow.mapSize.width = 2048;
+    key.shadow.mapSize.height = 2048;
+    key.shadow.camera.near = 1;
+    key.shadow.camera.far = 30;
+    key.shadow.camera.left = -10;
+    key.shadow.camera.right = 10;
+    key.shadow.camera.top = 10;
+    key.shadow.camera.bottom = -5;
+    key.shadow.bias = -0.0004;
+    key.shadow.radius = 4;
+    scene.add(key);
+
+    const fill = new THREE.DirectionalLight(0xaaccff, 0.8);
+    fill.position.set(-5, 3, -3);
+    scene.add(fill);
+
+    const rim = new THREE.PointLight(0x5588cc, 25, 18);
+    rim.position.set(0, 4, -4);
+    scene.add(rim);
+
+    const accentCyan = new THREE.PointLight(0x44cccc, 15, 10);
+    accentCyan.position.set(2, 1.5, 2);
+    scene.add(accentCyan);
+
+    const accentViolet = new THREE.PointLight(0x8844cc, 12, 10);
+    accentViolet.position.set(-2, 1.8, -1);
+    scene.add(accentViolet);
+
+    const topLight = new THREE.PointLight(0xffffff, 20, 18);
+    topLight.position.set(0, 8, 0);
+    scene.add(topLight);
+
+    const pcLight = new THREE.PointLight(0xff88cc, 18, 6);
+    pcLight.position.set(4.5, 2.0, 3.5);
+    scene.add(pcLight);
+
+    // ============================================================
+    // TEXTURAS
+    // ============================================================
+    function createRackTexture() {
+      const size = 512;
+      const c = document.createElement('canvas');
+      c.width = c.height = size;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#3a3a48';
+      ctx.fillRect(0, 0, size, size);
+      for (let i = 0; i < 20; i++) {
+        ctx.fillStyle = i % 2 === 0 ? '#4a4a5a' : '#42424f';
+        ctx.fillRect(10, 10 + i * 24, size - 20, 20);
+        for (let j = 0; j < 6; j++) {
+          ctx.fillStyle = Math.random() > 0.5 ? '#44ff88' : '#ffaa22';
+          ctx.beginPath();
+          ctx.arc(30 + j * 40, 20 + i * 24, 4, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.fillStyle = '#2a2a36';
+        for (let k = 0; k < 8; k++) {
+          ctx.fillRect(size - 120 + k * 12, 12 + i * 24, 6, 16);
+        }
+      }
+      const tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    function createDieTexture() {
+      const size = 512;
+      const c = document.createElement('canvas');
+      c.width = c.height = size;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#2a3a5a';
+      ctx.fillRect(0, 0, size, size);
+      const grid = 16;
+      const cell = size / grid;
+      for (let x = 0; x < grid; x++) {
+        for (let y = 0; y < grid; y++) {
+          const hue = 180 + Math.random() * 100;
+          ctx.fillStyle = `hsla(${hue}, 70%, ${35 + Math.random() * 25}%, 0.9)`;
+          ctx.fillRect(x * cell + 2, y * cell + 2, cell - 4, cell - 4);
+          ctx.fillStyle = `hsla(${hue}, 80%, 60%, 0.4)`;
+          ctx.fillRect(x * cell + cell * 0.3, y * cell + cell * 0.3, cell * 0.4, cell * 0.4);
+        }
+      }
+      ctx.strokeStyle = 'rgba(150, 220, 255, 0.6)';
+      ctx.lineWidth = 2;
+      for (let i = 0; i < 20; i++) {
+        ctx.beginPath();
+        ctx.moveTo(Math.random() * size, 0);
+        ctx.lineTo(Math.random() * size, size);
+        ctx.stroke();
+      }
+      const tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    function createFloorTexture() {
+      const size = 512;
+      const c = document.createElement('canvas');
+      c.width = c.height = size;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#25252e';
+      ctx.fillRect(0, 0, size, size);
+      ctx.strokeStyle = '#3a3a48';
+      ctx.lineWidth = 2;
+      const step = size / 6;
+      for (let i = 0; i <= 6; i++) {
+        ctx.beginPath(); ctx.moveTo(i * step, 0); ctx.lineTo(i * step, size); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, i * step); ctx.lineTo(size, i * step); ctx.stroke();
+      }
+      for (let i = 0; i < 30; i++) {
+        ctx.fillStyle = `rgba(150, 200, 255, ${Math.random() * 0.05})`;
+        ctx.fillRect(Math.random() * size, Math.random() * size, 30, 30);
+      }
+      const tex = new THREE.CanvasTexture(c);
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(5, 5);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    function createLabelTexture(text, sub = '') {
+      const c = document.createElement('canvas');
+      c.width = 512; c.height = 256;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#1a1a24';
+      ctx.fillRect(0, 0, 512, 256);
+      ctx.strokeStyle = '#5cc9c9';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(8, 8, 496, 240);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 52px "Courier New", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(text, 256, 125);
+      if (sub) {
+        ctx.font = '24px "Courier New", monospace';
+        ctx.fillStyle = '#8ee0e0';
+        ctx.fillText(sub, 256, 185);
+      }
+      const tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    function createScreenTexture() {
+      const c = document.createElement('canvas');
+      c.width = 1024; c.height = 512;
+      const ctx = c.getContext('2d');
+      const grd = ctx.createLinearGradient(0, 0, 1024, 512);
+      grd.addColorStop(0, '#0a1020');
+      grd.addColorStop(1, '#1a2040');
+      ctx.fillStyle = grd;
+      ctx.fillRect(0, 0, 1024, 512);
+      ctx.fillStyle = '#2a3040';
+      ctx.fillRect(0, 0, 1024, 30);
+      ['#ff5f57', '#febc2e', '#28c840'].forEach((col, i) => {
+        ctx.fillStyle = col;
+        ctx.beginPath();
+        ctx.arc(20 + i * 25, 15, 7, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.fillStyle = '#a0b0d0';
+      ctx.font = '14px "Courier New", monospace';
+      ctx.fillText('museo-ia-2026 — Terminal', 120, 20);
+      ctx.font = '16px "Courier New", monospace';
+      const lines = [
+        '> inicializando sistema de museo...',
+        '> cargando modelos IA: GPT-6, Claude Opus 5.5',
+        '> supercomputadora LineShine: 2.198 Exaflop/s',
+        '> GPU local: NVIDIA RTX 5090 · 32 GB',
+        '> entrenando modelo local (fine-tune)...',
+        '> epoch 12/50 — loss: 0.0342 — OK',
+        '> renderizando escena 3D...',
+        '> FPS: 240 · GPU temp: 62°C',
+      ];
+      lines.forEach((line, i) => {
+        ctx.fillStyle = i % 2 === 0 ? '#5cc9c9' : '#88ddaa';
+        ctx.fillText(line, 40, 70 + i * 30);
+      });
+      ctx.fillStyle = '#5cc9c9';
+      ctx.fillRect(40, 70 + lines.length * 30, 10, 18);
+      ctx.strokeStyle = '#5cc9c9';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let i = 0; i < 40; i++) {
+        const x = 700 + i * 7;
+        const y = 450 - (Math.sin(i * 0.3) * 30 + Math.random() * 20 + 20);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      const tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    // ============================================================
+    // MATERIALES
+    // ============================================================
+    const rackTex = createRackTexture();
+    const dieTex = createDieTexture();
+    const screenTex = createScreenTexture();
+
+    const matRack = new THREE.MeshStandardMaterial({
+      map: rackTex, roughness: 0.55, metalness: 0.5, color: 0xccccdd, envMapIntensity: 0.8,
+    });
+    const matRackDark = new THREE.MeshStandardMaterial({
+      map: rackTex, roughness: 0.6, metalness: 0.45, color: 0x8888aa, envMapIntensity: 0.7,
+    });
+    const matDarkMetal = new THREE.MeshStandardMaterial({
+      color: 0x4a4a58, roughness: 0.45, metalness: 0.7, envMapIntensity: 0.8,
+    });
+    const matCaseMetal = new THREE.MeshStandardMaterial({
+      color: 0x2a2a32, roughness: 0.35, metalness: 0.85, envMapIntensity: 1.0,
+    });
+    const matPCB = new THREE.MeshStandardMaterial({
+      color: 0x1e4a2e, roughness: 0.55, metalness: 0.15, envMapIntensity: 0.5,
+    });
+    const matDie = new THREE.MeshPhysicalMaterial({
+      map: dieTex, roughness: 0.25, metalness: 0.4,
+      clearcoat: 0.9, clearcoatRoughness: 0.1,
+      iridescence: 0.4, envMapIntensity: 1.2,
+    });
+    const matGold = new THREE.MeshStandardMaterial({
+      color: 0xd4af37, roughness: 0.25, metalness: 0.95, envMapIntensity: 1.1,
+    });
+    const matGlass = new THREE.MeshPhysicalMaterial({
+      color: 0xaaccdd, transmission: 0.85, transparent: true, opacity: 0.3,
+      roughness: 0.05, metalness: 0.0, clearcoat: 1.0, clearcoatRoughness: 0.05,
+      envMapIntensity: 1.2,
+    });
+    const matScreen = new THREE.MeshStandardMaterial({
+      map: screenTex, emissive: 0xffffff, emissiveMap: screenTex,
+      emissiveIntensity: 1.2, roughness: 0.3, metalness: 0.0,
+    });
+
+    const matLEDGreen = new THREE.MeshStandardMaterial({ color: 0x44ff88, emissive: 0x22ff66, emissiveIntensity: 2.0, roughness: 0.3 });
+    const matLEDCyan = new THREE.MeshStandardMaterial({ color: 0x44cccc, emissive: 0x22bbdd, emissiveIntensity: 2.2, roughness: 0.3 });
+    const matLEDViolet = new THREE.MeshStandardMaterial({ color: 0xaa66ff, emissive: 0x8844ff, emissiveIntensity: 2.0, roughness: 0.3 });
+    const matLEDPink = new THREE.MeshStandardMaterial({ color: 0xff66cc, emissive: 0xdd44aa, emissiveIntensity: 2.2, roughness: 0.3 });
+    [matLEDGreen, matLEDCyan, matLEDViolet, matLEDPink].forEach(m => m.userData.baseIntensity = m.emissiveIntensity);
+
+    // ============================================================
+    // GRUPO PRINCIPAL
+    // ============================================================
+    const worldGroup = new THREE.Group();
+    scene.add(worldGroup);
+
+    const floor = new THREE.Mesh(
+      new THREE.CircleGeometry(16, 64),
+      new THREE.MeshStandardMaterial({ map: createFloorTexture(), roughness: 0.85, metalness: 0.15, envMapIntensity: 0.4 })
+    );
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -0.01;
+    floor.receiveShadow = true;
+    scene.add(floor);
+
+    // ============================================================
+    // RACKS
+    // ============================================================
+    function createRack(posX, posZ, height, rackKey, accentMat) {
+      const g = new THREE.Group();
+      const w = 0.9, d = 0.7, h = height;
+
+      const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), matRack);
+      body.position.y = h / 2;
+      body.castShadow = true; body.receiveShadow = true;
+      body.userData.device = rackKey;
+      g.add(body);
+
+      const frame = new THREE.Mesh(new THREE.BoxGeometry(w * 0.95, h * 0.95, 0.05), matDarkMetal);
+      frame.position.set(0, h / 2, d / 2 + 0.02);
+      frame.castShadow = true; frame.receiveShadow = true;
+      frame.userData.device = rackKey;
+      g.add(frame);
+
+      for (let i = 0; i < 8; i++) {
+        const led = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 8), i % 2 === 0 ? accentMat : matLEDGreen);
+        led.position.set(-0.3 + (i % 4) * 0.2, 0.2 + Math.floor(i / 4) * (h - 0.4), d / 2 + 0.07);
+        led.userData.device = rackKey;
+        g.add(led);
+      }
+
+      const lbl = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.5, 0.2),
+        new THREE.MeshStandardMaterial({
+          map: createLabelTexture(rackKey === 'lineShine' ? 'LS' : rackKey === 'elCapitan' ? 'EC' : 'JP', 'EXA'),
+          roughness: 0.4, metalness: 0.3,
+        })
+      );
+      lbl.position.set(0, h * 0.88, d / 2 + 0.07);
+      lbl.userData.device = rackKey;
+      g.add(lbl);
+
+      for (let i = 0; i < 10; i++) {
+        const vent = new THREE.Mesh(new THREE.BoxGeometry(w * 0.7, 0.02, 0.02), matDarkMetal);
+        vent.position.set(0, h * 0.1 + i * (h * 0.08), d / 2 + 0.06);
+        vent.userData.device = rackKey;
+        g.add(vent);
+      }
+
+      g.position.set(posX, 0, posZ);
+      return g;
+    }
+
+    const ls1 = createRack(-3.2, -1.0, 2.4, 'lineShine', matLEDCyan);
+    const ls2 = createRack(-3.2, -0.2, 2.4, 'lineShine', matLEDCyan);
+    worldGroup.add(ls1, ls2);
+
+    const ec1 = createRack(-1.2, -1.0, 2.2, 'elCapitan', matLEDCyan);
+    const ec2 = createRack(-1.2, -0.2, 2.2, 'elCapitan', matLEDCyan);
+    worldGroup.add(ec1, ec2);
+
+    const jp1 = createRack(0.8, -0.6, 2.0, 'jupiter', matLEDViolet);
+    worldGroup.add(jp1);
+
+    // ============================================================
+    // NODO GH200
+    // ============================================================
+    const nodeGroup = new THREE.Group();
+    const nodePCB = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.06, 0.9), matPCB);
+    nodePCB.position.y = 0.03;
+    nodePCB.castShadow = true; nodePCB.receiveShadow = true;
+    nodePCB.userData.device = 'jupiter';
+    nodeGroup.add(nodePCB);
+
+    const superchip = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.08, 0.4), matDarkMetal);
+    superchip.position.set(-0.3, 0.11, 0);
+    superchip.castShadow = true; superchip.receiveShadow = true;
+    superchip.userData.device = 'jupiter';
+    nodeGroup.add(superchip);
+
+    const die = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.3), matDie);
+    die.rotation.x = -Math.PI / 2;
+    die.position.set(-0.3, 0.152, 0);
+    die.userData.device = 'jupiter';
+    nodeGroup.add(die);
+
+    for (let i = 0; i < 4; i++) {
+      const hbm = new THREE.Mesh(
+        new THREE.BoxGeometry(0.08, 0.05, 0.25),
+        new THREE.MeshStandardMaterial({ color: 0x2a2a3a, roughness: 0.35, metalness: 0.7 })
+      );
+      hbm.position.set(0.1 + i * 0.1, 0.11, 0.2);
+      hbm.castShadow = true; hbm.receiveShadow = true;
+      hbm.userData.device = 'jupiter';
+      nodeGroup.add(hbm);
+    }
+
+    nodeGroup.position.set(2.8, 0, 1.8);
+    worldGroup.add(nodeGroup);
+
+    // ============================================================
+    // NVIDIA RUBIN
+    // ============================================================
+    const gpuGroup = new THREE.Group();
+    const gpuPCB = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.05, 0.7), matPCB);
+    gpuPCB.position.y = 0.025;
+    gpuPCB.castShadow = true; gpuPCB.receiveShadow = true;
+    gpuPCB.userData.device = 'nvidiaRubin';
+    gpuGroup.add(gpuPCB);
+
+    const gpuPkg = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.06, 0.4), matDarkMetal);
+    gpuPkg.position.y = 0.08;
+    gpuPkg.castShadow = true; gpuPkg.receiveShadow = true;
+    gpuPkg.userData.device = 'nvidiaRubin';
+    gpuGroup.add(gpuPkg);
+
+    const gpuDie = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.3), matDie);
+    gpuDie.rotation.x = -Math.PI / 2;
+    gpuDie.position.y = 0.112;
+    gpuDie.userData.device = 'nvidiaRubin';
+    gpuGroup.add(gpuDie);
+
+    for (let i = 0; i < 6; i++) {
+      const fin = new THREE.Mesh(
+        new THREE.BoxGeometry(0.45, 0.08, 0.02),
+        new THREE.MeshStandardMaterial({ color: 0xb0b0c0, roughness: 0.3, metalness: 0.9 })
+      );
+      fin.position.set(0, 0.15, -0.2 + i * 0.08);
+      fin.castShadow = true;
+      fin.userData.device = 'nvidiaRubin';
+      gpuGroup.add(fin);
+    }
+
+    gpuGroup.position.set(4.5, 0, 1.8);
+    worldGroup.add(gpuGroup);
+
+    // ============================================================
+    // AMD MI455X
+    // ============================================================
+    const amdGroup = new THREE.Group();
+    const amdPCB = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.05, 0.65), matPCB);
+    amdPCB.position.y = 0.025;
+    amdPCB.castShadow = true; amdPCB.receiveShadow = true;
+    amdPCB.userData.device = 'amdMI455X';
+    amdGroup.add(amdPCB);
+
+    const amdPkg = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.06, 0.35), matDarkMetal);
+    amdPkg.position.y = 0.08;
+    amdPkg.castShadow = true; amdPkg.receiveShadow = true;
+    amdPkg.userData.device = 'amdMI455X';
+    amdGroup.add(amdPkg);
+
+    const amdDie = new THREE.Mesh(new THREE.PlaneGeometry(0.35, 0.25), matDie);
+    amdDie.rotation.x = -Math.PI / 2;
+    amdDie.position.y = 0.112;
+    amdDie.userData.device = 'amdMI455X';
+    amdGroup.add(amdDie);
+
+    amdGroup.position.set(4.5, 0, 0.6);
+    worldGroup.add(amdGroup);
+
+    // ============================================================
+    // CHIP IA
+    // ============================================================
+    const aiChip = new THREE.Mesh(
+      new THREE.BoxGeometry(0.7, 0.06, 0.5),
+      new THREE.MeshStandardMaterial({ color: 0x2a2a3a, roughness: 0.35, metalness: 0.7 })
+    );
+    aiChip.position.set(2.8, 0.08, 0.3);
+    aiChip.castShadow = true; aiChip.receiveShadow = true;
+    aiChip.userData.device = 'gpt6';
+    worldGroup.add(aiChip);
+
+    const aiLED = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 10), matLEDViolet);
+    aiLED.position.set(2.8, 0.14, 0.3);
+    aiLED.userData.device = 'claudeOpus';
+    worldGroup.add(aiLED);
+
+    // ============================================================
+    // PC MODERNA
+    // ============================================================
+    const pcGroup = new THREE.Group();
+    const pcW = 0.7, pcH = 1.4, pcD = 0.9;
+
+    const pcBody = new THREE.Mesh(new THREE.BoxGeometry(pcW, pcH, pcD), matCaseMetal);
+    pcBody.position.y = pcH / 2;
+    pcBody.castShadow = true; pcBody.receiveShadow = true;
+    pcBody.userData.device = 'modernPC';
+    pcGroup.add(pcBody);
+
+    const glassPanel = new THREE.Mesh(new THREE.BoxGeometry(0.02, pcH * 0.92, pcD * 0.9), matGlass);
+    glassPanel.position.set(pcW / 2 + 0.01, pcH / 2, 0);
+    glassPanel.userData.device = 'modernPC';
+    pcGroup.add(glassPanel);
+
+    const glassFrame = new THREE.Mesh(new THREE.BoxGeometry(0.03, pcH * 0.96, pcD * 0.94), matDarkMetal);
+    glassFrame.position.set(pcW / 2 - 0.01, pcH / 2, 0);
+    glassFrame.userData.device = 'modernPC';
+    pcGroup.add(glassFrame);
+
+    const mobo = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.5, 0.6), matPCB);
+    mobo.position.set(-0.1, 0.7, 0);
+    mobo.rotation.y = Math.PI / 2;
+    mobo.userData.device = 'modernPC';
+    pcGroup.add(mobo);
+
+    const cpuBlock = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.08, 24), matDarkMetal);
+    cpuBlock.position.set(0, 0.9, -0.1);
+    cpuBlock.rotation.z = Math.PI / 2;
+    cpuBlock.castShadow = true;
+    cpuBlock.userData.device = 'modernPC';
+    pcGroup.add(cpuBlock);
+
+    const aioPump = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.06, 24), matLEDPink);
+    aioPump.position.set(0.04, 0.9, -0.1);
+    aioPump.rotation.z = Math.PI / 2;
+    aioPump.userData.device = 'modernPC';
+    pcGroup.add(aioPump);
+
+    const tubeGeo = new THREE.CylinderGeometry(0.025, 0.025, 0.5, 12);
+    const tubeMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1e, roughness: 0.7, metalness: 0.1 });
+    const tube1 = new THREE.Mesh(tubeGeo, tubeMat);
+    tube1.position.set(0, 1.1, -0.25);
+    tube1.rotation.z = 0.3;
+    tube1.userData.device = 'modernPC';
+    pcGroup.add(tube1);
+    const tube2 = new THREE.Mesh(tubeGeo, tubeMat);
+    tube2.position.set(0, 1.1, 0.05);
+    tube2.rotation.z = 0.3;
+    tube2.userData.device = 'modernPC';
+    pcGroup.add(tube2);
+
+    const radiator = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.08, 0.25), matDarkMetal);
+    radiator.position.set(0, 1.32, -0.2);
+    radiator.castShadow = true;
+    radiator.userData.device = 'modernPC';
+    pcGroup.add(radiator);
+
+    const gpuBody = new THREE.Mesh(
+      new THREE.BoxGeometry(0.5, 0.15, 0.25),
+      new THREE.MeshStandardMaterial({ color: 0x1a1a24, roughness: 0.4, metalness: 0.7 })
+    );
+    gpuBody.position.set(0.02, 0.4, 0.1);
+    gpuBody.castShadow = true;
+    gpuBody.userData.device = 'modernPC';
+    pcGroup.add(gpuBody);
+
+    for (let i = 0; i < 2; i++) {
+      const fan = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.06, 0.06, 0.02, 24),
+        new THREE.MeshStandardMaterial({ color: 0x2a2a32, roughness: 0.5, metalness: 0.6 })
+      );
+      fan.rotation.z = Math.PI / 2;
+      fan.position.set(0.28, 0.4, i * 0.12);
+      fan.userData.device = 'modernPC';
+      pcGroup.add(fan);
+    }
+
+    const gpuLED = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.03, 0.2), matLEDCyan);
+    gpuLED.position.set(0.29, 0.46, 0.1);
+    gpuLED.userData.device = 'modernPC';
+    pcGroup.add(gpuLED);
+
+    const rgbStrip1 = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.4, 0.02), matLEDPink);
+    rgbStrip1.position.set(0.15, 0.7, -0.35);
+    rgbStrip1.userData.device = 'modernPC';
+    pcGroup.add(rgbStrip1);
+
+    const rgbStrip2 = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.4, 0.02), matLEDCyan);
+    rgbStrip2.position.set(0.15, 0.7, 0.35);
+    rgbStrip2.userData.device = 'modernPC';
+    pcGroup.add(rgbStrip2);
+
+    const psu = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.2, 0.3), matDarkMetal);
+    psu.position.set(0, 0.15, 0);
+    psu.castShadow = true;
+    psu.userData.device = 'modernPC';
+    pcGroup.add(psu);
+
+    for (let i = 0; i < 4; i++) {
+      const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.04, 12), matDarkMetal);
+      foot.position.set(
+        (i % 2 === 0 ? -1 : 1) * (pcW / 2 - 0.08),
+        0.02,
+        (i < 2 ? -1 : 1) * (pcD / 2 - 0.08)
+      );
+      foot.userData.device = 'modernPC';
+      pcGroup.add(foot);
+    }
+
+    pcGroup.position.set(4.5, 0, 3.8);
+    pcGroup.rotation.y = -0.3;
+    worldGroup.add(pcGroup);
+
+    // ============================================================
+    // MONITOR
+    // ============================================================
+    const monitorGroup = new THREE.Group();
+
+    const monBase = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.3, 0.04, 32), matDarkMetal);
+    monBase.position.y = 0.02;
+    monBase.castShadow = true; monBase.receiveShadow = true;
+    monBase.userData.device = 'monitor';
+    monitorGroup.add(monBase);
+
+    const monArm = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.35, 0.06), matDarkMetal);
+    monArm.position.set(0, 0.2, -0.1);
+    monArm.castShadow = true;
+    monArm.userData.device = 'monitor';
+    monitorGroup.add(monArm);
+
+    const monBack = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.55, 0.04), matDarkMetal);
+    monBack.position.set(0, 0.5, 0);
+    monBack.castShadow = true; monBack.receiveShadow = true;
+    monBack.userData.device = 'monitor';
+    monitorGroup.add(monBack);
+
+    const monBezel = new THREE.Mesh(
+      new THREE.BoxGeometry(1.62, 0.57, 0.03),
+      new THREE.MeshStandardMaterial({ color: 0x0a0a0e, roughness: 0.5, metalness: 0.3 })
+    );
+    monBezel.position.set(0, 0.5, 0.02);
+    monBezel.userData.device = 'monitor';
+    monitorGroup.add(monBezel);
+
+    const monScreen = new THREE.Mesh(new THREE.PlaneGeometry(1.56, 0.52), matScreen);
+    monScreen.position.set(0, 0.5, 0.04);
+    monScreen.userData.device = 'monitor';
+    monitorGroup.add(monScreen);
+
+    const monStand = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.25, 0.1), matDarkMetal);
+    monStand.position.set(0, 0.13, -0.08);
+    monStand.castShadow = true;
+    monStand.userData.device = 'monitor';
+    monitorGroup.add(monStand);
+
+    monitorGroup.position.set(4.5, 0, 2.8);
+    monitorGroup.rotation.y = -0.3;
+    worldGroup.add(monitorGroup);
+
+    // ============================================================
+    // TECLADO
+    // ============================================================
+    const keyboardGroup = new THREE.Group();
+    const kbBase = new THREE.Mesh(
+      new THREE.BoxGeometry(0.75, 0.03, 0.28),
+      new THREE.MeshStandardMaterial({ color: 0x1a1a1e, roughness: 0.5, metalness: 0.4 })
+    );
+    kbBase.position.y = 0.015;
+    kbBase.castShadow = true; kbBase.receiveShadow = true;
+    kbBase.userData.device = 'keyboard';
+    keyboardGroup.add(kbBase);
+
+    const keyGeo = new THREE.BoxGeometry(0.04, 0.02, 0.04);
+    for (let row = 0; row < 5; row++) {
+      for (let col = 0; col < 15; col++) {
+        const key = new THREE.Mesh(keyGeo, matDarkMetal);
+        key.position.set(-0.35 + col * 0.048, 0.04, -0.1 + row * 0.05);
+        key.castShadow = true;
+        key.userData.device = 'keyboard';
+        keyboardGroup.add(key);
+      }
+    }
+
+    const kbRGB = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.005, 0.25), matLEDPink);
+    kbRGB.position.y = 0.005;
+    kbRGB.userData.device = 'keyboard';
+    keyboardGroup.add(kbRGB);
+
+    keyboardGroup.position.set(4.5, 0, 4.6);
+    keyboardGroup.rotation.y = -0.3;
+    worldGroup.add(keyboardGroup);
+
+    // ============================================================
+    // RATÓN
+    // ============================================================
+    const mouseGroup = new THREE.Group();
+    const mouseBody = new THREE.Mesh(
+      new THREE.SphereGeometry(0.07, 16, 12),
+      new THREE.MeshStandardMaterial({ color: 0x1a1a1e, roughness: 0.4, metalness: 0.6 })
+    );
+    mouseBody.scale.set(1, 0.6, 1.4);
+    mouseBody.position.y = 0.04;
+    mouseBody.castShadow = true; mouseBody.receiveShadow = true;
+    mouseBody.userData.device = 'mouse';
+    mouseGroup.add(mouseBody);
+
+    const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.03, 12), matDarkMetal);
+    wheel.rotation.z = Math.PI / 2;
+    wheel.position.set(0, 0.08, -0.03);
+    wheel.userData.device = 'mouse';
+    mouseGroup.add(wheel);
+
+    const mouseLED = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.01, 0.06), matLEDCyan);
+    mouseLED.position.set(0, 0.06, 0.02);
+    mouseLED.userData.device = 'mouse';
+    mouseGroup.add(mouseLED);
+
+    mouseGroup.position.set(5.4, 0, 4.7);
+    mouseGroup.rotation.y = -0.3;
+    worldGroup.add(mouseGroup);
+
+    // ============================================================
+    // CONEXIONES
+    // ============================================================
+    function createLink(points, color = 0x44cccc) {
+      const curve = new THREE.CatmullRomCurve3(points);
+      const tube = new THREE.Mesh(
+        new THREE.TubeGeometry(curve, 32, 0.02, 8, false),
+        new THREE.MeshStandardMaterial({
+          color, roughness: 0.4, metalness: 0.6,
+          emissive: color, emissiveIntensity: 0.5,
+        })
+      );
+      tube.castShadow = true;
+      tube.receiveShadow = true;
+      return tube;
+    }
+
+    worldGroup.add(createLink([
+      new THREE.Vector3(-3.2, 0.5, -1.0),
+      new THREE.Vector3(-2.0, 0.3, -0.2),
+      new THREE.Vector3(-1.2, 0.4, -1.0),
+    ], 0x44cccc));
+
+    worldGroup.add(createLink([
+      new THREE.Vector3(-1.2, 0.5, -0.2),
+      new THREE.Vector3(0.0, 0.4, 0.2),
+      new THREE.Vector3(0.8, 0.3, -0.6),
+    ], 0x8844cc));
+
+    worldGroup.add(createLink([
+      new THREE.Vector3(4.5, 1.4, 3.8),
+      new THREE.Vector3(4.5, 1.0, 3.3),
+      new THREE.Vector3(4.5, 0.6, 2.8),
+    ], 0x666688));
+
+    worldGroup.add(createLink([
+      new THREE.Vector3(4.5, 0.1, 4.6),
+      new THREE.Vector3(4.5, 0.1, 4.2),
+      new THREE.Vector3(4.5, 0.1, 3.8),
+    ], 0x444444));
+
+    // ============================================================
+    // PLACA
+    // ============================================================
+    const plaqueTex = (() => {
+      const c = document.createElement('canvas');
+      c.width = 1024; c.height = 512;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#1a1a24';
+      ctx.fillRect(0, 0, 1024, 512);
+      ctx.strokeStyle = '#5cc9c9';
+      ctx.lineWidth = 6;
+      ctx.strokeRect(16, 16, 992, 480);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 56px "Times New Roman", serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Era Exaescala · 2026', 512, 140);
+      ctx.font = '26px "Courier New", monospace';
+      ctx.fillStyle = '#8ee0e0';
+      ctx.fillText('SUPERCOMPUTACIÓN · ARQUITECTURAS PARALELAS · IA · PC MODERNA', 512, 200);
+      ctx.font = '20px "Courier New", monospace';
+      ctx.fillStyle = '#c0d0d8';
+      ctx.fillText('LineShine · El Capitan · JUPITER · NVIDIA Rubin · AMD MI455X', 512, 270);
+      ctx.fillText('Intel Core Ultra 9 · RTX 5090 · Monitor OLED 49" · GPT-6 · Claude Opus 5.5', 512, 310);
+      ctx.strokeStyle = '#5cc9c9';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(150, 370); ctx.lineTo(874, 370); ctx.stroke();
+      const tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    })();
+
+    const plaque = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.8, 0.9),
+      new THREE.MeshStandardMaterial({ map: plaqueTex, roughness: 0.45, metalness: 0.4, side: THREE.DoubleSide, envMapIntensity: 0.6 })
+    );
+    plaque.rotation.x = -Math.PI / 2;
+    plaque.rotation.z = 0.05;
+    plaque.position.set(0, 0.005, 4.5);
+    plaque.receiveShadow = true;
+    worldGroup.add(plaque);
+
+    // ============================================================
+    // POST-PROCESADO
+    // ============================================================
+    const composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera));
+
+    const bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.6, 0.4, 0.9);
+    bloom.threshold = 0.65;
+    bloom.strength = 0.5;
+    bloom.radius = 0.4;
+    composer.addPass(bloom);
+
+    const fxaa = new ShaderPass(FXAAShader);
+    const pr = renderer.getPixelRatio();
+    fxaa.material.uniforms['resolution'].value.x = 1 / (window.innerWidth * pr);
+    fxaa.material.uniforms['resolution'].value.y = 1 / (window.innerHeight * pr);
+    composer.addPass(fxaa);
+
+    // ============================================================
+    // INTERACCIÓN
+    // ============================================================
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    const tooltip = document.getElementById('device-tooltip');
+    let hoveredDevice = null;
+    let tooltipPinned = false;
+    let pinnedDevice = null;
+
+    const interactiveObjects = [];
+    scene.traverse(obj => {
+      if (obj.isMesh && obj.userData.device) interactiveObjects.push(obj);
+    });
+
+    function showTooltip(key, x, y) {
+      const info = DEVICE_INFO[key];
+      if (!info) return;
+      let html = `<h3>${info.title}</h3><div class="tt-sub">${info.subtitle}</div>`;
+      info.specs.forEach(([k, v]) => html += `<div class="tt-row"><span>${k}</span><span>${v}</span></div>`);
+      html += `<div class="tt-desc">${info.desc}</div>`;
+      tooltip.innerHTML = html;
+
+      let px = x + 18, py = y + 18;
+      const rect = tooltip.getBoundingClientRect();
+      if (px + rect.width > window.innerWidth - 10) px = x - rect.width - 18;
+      if (py + rect.height > window.innerHeight - 10) py = y - rect.height - 18;
+      tooltip.style.left = `${Math.max(10, px)}px`;
+      tooltip.style.top = `${Math.max(10, py)}px`;
+      tooltip.classList.add('visible');
+    }
+
+    function hideTooltip() { if (!tooltipPinned) tooltip.classList.remove('visible'); }
+
+    window.addEventListener('pointermove', (e) => {
+      mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+      const hits = raycaster.intersectObjects(interactiveObjects, false);
+
+      if (hits.length > 0) {
+        const key = hits[0].object.userData.device;
+        if (key && DEVICE_INFO[key]) {
+          hoveredDevice = key;
+          document.body.style.cursor = 'pointer';
+          showTooltip(key, e.clientX, e.clientY);
+        }
+      } else if (hoveredDevice && !tooltipPinned) {
+        hoveredDevice = null;
+        hideTooltip();
+        document.body.style.cursor = 'default';
+      }
+    });
+
+    window.addEventListener('pointerdown', (e) => {
+      if (e.target.closest('#controls') || e.target.closest('#info-panel')) return;
+      mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+      const hits = raycaster.intersectObjects(interactiveObjects, false);
+
+      if (hits.length > 0) {
+        const key = hits[0].object.userData.device;
+        if (key && DEVICE_INFO[key]) {
+          if (tooltipPinned && pinnedDevice === key) {
+            tooltipPinned = false; pinnedDevice = null; hideTooltip();
+          } else {
+            tooltipPinned = true; pinnedDevice = key;
+            showTooltip(key, e.clientX, e.clientY);
+          }
+        }
+      } else if (tooltipPinned) {
+        tooltipPinned = false; pinnedDevice = null; hideTooltip();
+      }
+    });
+
+    // ============================================================
+    // ETIQUETAS
+    // ============================================================
+    const labelMarkers = [];
+    function createLabel(text, pos) {
+      const el = document.createElement('div');
+      el.className = 'label-marker';
+      el.textContent = text;
+      document.body.appendChild(el);
+      labelMarkers.push({ el, pos: pos.clone() });
+    }
+
+    createLabel('LineShine · Nº1 TOP500', new THREE.Vector3(-3.2, 2.6, -0.6));
+    createLabel('El Capitan · Exaescala', new THREE.Vector3(-1.2, 2.4, -0.6));
+    createLabel('JUPITER · Europa', new THREE.Vector3(0.8, 2.2, -0.6));
+    createLabel('Nodo GH200', new THREE.Vector3(2.8, 0.6, 1.8));
+    createLabel('NVIDIA Rubin', new THREE.Vector3(4.5, 0.6, 1.8));
+    createLabel('AMD MI455X', new THREE.Vector3(4.5, 0.6, 0.6));
+    createLabel('PC Moderna 2026', new THREE.Vector3(4.5, 1.8, 3.8));
+    createLabel('Monitor OLED 49"', new THREE.Vector3(4.5, 1.0, 2.8));
+    createLabel('Teclado RGB', new THREE.Vector3(4.5, 0.3, 4.6));
+    createLabel('Ratón', new THREE.Vector3(5.4, 0.3, 4.7));
+
+    // ============================================================
+    // CONTROLES
+    // ============================================================
+    let labelsVisible = false;
+    let exploded = false;
+    let lightsOn = true;
+    let autoRotateEnabled = true;
+
+    const btnRotate = document.getElementById('btn-rotate');
+    const btnLabels = document.getElementById('btn-labels');
+    const btnExplode = document.getElementById('btn-explode');
+    const btnLights = document.getElementById('btn-lights');
+    const btnReset = document.getElementById('btn-reset');
+    const hoverHint = document.getElementById('hover-hint');
+
+    setTimeout(() => {
+      hoverHint.classList.add('visible');
+      setTimeout(() => hoverHint.classList.remove('visible'), 6000);
+    }, 1200);
+
+    btnRotate.addEventListener('click', () => {
+      autoRotateEnabled = !autoRotateEnabled;
+      controls.autoRotate = autoRotateEnabled;
+      btnRotate.classList.toggle('active', autoRotateEnabled);
+    });
+
+    btnLabels.addEventListener('click', () => {
+      labelsVisible = !labelsVisible;
+      btnLabels.classList.toggle('active', labelsVisible);
+    });
+
+    btnExplode.addEventListener('click', () => {
+      exploded = !exploded;
+      btnExplode.classList.toggle('active', exploded);
+
+      const dur = 0.6;
+      const t0 = performance.now();
+      const start = {
+        ls1: ls1.position.clone(), ls2: ls2.position.clone(),
+        ec1: ec1.position.clone(), ec2: ec2.position.clone(),
+        jp1: jp1.position.clone(),
+        node: nodeGroup.position.clone(),
+        gpu: gpuGroup.position.clone(),
+        amd: amdGroup.position.clone(),
+        pc: pcGroup.position.clone(),
+        monitor: monitorGroup.position.clone(),
+        keyboard: keyboardGroup.position.clone(),
+        mouse: mouseGroup.position.clone(),
+      };
+      const target = exploded ? {
+        ls1: new THREE.Vector3(-6, 1.0, -2), ls2: new THREE.Vector3(-6, 1.0, -1),
+        ec1: new THREE.Vector3(-3, 1.5, -2), ec2: new THREE.Vector3(-3, 1.5, -1),
+        jp1: new THREE.Vector3(0, 1.2, -2),
+        node: new THREE.Vector3(2, 0.8, 0.5),
+        gpu: new THREE.Vector3(5, 0.8, 0.5),
+        amd: new THREE.Vector3(5, 0.8, -0.5),
+        pc: new THREE.Vector3(5.5, 0.5, 5),
+        monitor: new THREE.Vector3(5.5, 0.5, 3.5),
+        keyboard: new THREE.Vector3(5.5, 0.3, 6.5),
+        mouse: new THREE.Vector3(7, 0.3, 6.5),
+      } : {
+        ls1: new THREE.Vector3(-3.2, 0, -1.0), ls2: new THREE.Vector3(-3.2, 0, -0.2),
+        ec1: new THREE.Vector3(-1.2, 0, -1.0), ec2: new THREE.Vector3(-1.2, 0, -0.2),
+        jp1: new THREE.Vector3(0.8, 0, -0.6),
+        node: new THREE.Vector3(2.8, 0, 1.8),
+        gpu: new THREE.Vector3(4.5, 0, 1.8),
+        amd: new THREE.Vector3(4.5, 0, 0.6),
+        pc: new THREE.Vector3(4.5, 0, 3.8),
+        monitor: new THREE.Vector3(4.5, 0, 2.8),
+        keyboard: new THREE.Vector3(4.5, 0, 4.6),
+        mouse: new THREE.Vector3(5.4, 0, 4.7),
+      };
+      function step() {
+        const t = Math.min(1, (performance.now() - t0) / 1000 / dur);
+        const e = 1 - Math.pow(1 - t, 3);
+        ls1.position.lerpVectors(start.ls1, target.ls1, e);
+        ls2.position.lerpVectors(start.ls2, target.ls2, e);
+        ec1.position.lerpVectors(start.ec1, target.ec1, e);
+        ec2.position.lerpVectors(start.ec2, target.ec2, e);
+        jp1.position.lerpVectors(start.jp1, target.jp1, e);
+        nodeGroup.position.lerpVectors(start.node, target.node, e);
+        gpuGroup.position.lerpVectors(start.gpu, target.gpu, e);
+        amdGroup.position.lerpVectors(start.amd, target.amd, e);
+        pcGroup.position.lerpVectors(start.pc, target.pc, e);
+        monitorGroup.position.lerpVectors(start.monitor, target.monitor, e);
+        keyboardGroup.position.lerpVectors(start.keyboard, target.keyboard, e);
+        mouseGroup.position.lerpVectors(start.mouse, target.mouse, e);
+        if (t < 1) requestAnimationFrame(step);
+      }
+      step();
+    });
+
+    btnLights.addEventListener('click', () => {
+      lightsOn = !lightsOn;
+      btnLights.classList.toggle('active', !lightsOn);
+      scene.traverse(child => {
+        if (child.isMesh && child.material) {
+          const mats = Array.isArray(child.material) ? child.material : [child.material];
+          mats.forEach(m => {
+            if (m.emissive && m.userData.baseIntensity !== undefined) {
+              m.emissiveIntensity = lightsOn ? m.userData.baseIntensity : 0;
+            }
+          });
+        }
+      });
+    });
+
+    btnReset.addEventListener('click', () => {
+      camera.position.set(6.5, 4.5, 9.5);
+      controls.target.set(0, 1.2, 0);
+      controls.update();
+      autoRotateEnabled = true;
+      controls.autoRotate = true;
+      btnRotate.classList.add('active');
+      zoomIndicator.classList.remove('visible');
+    });
+
+    // ============================================================
+    // BUCLE
+    // ============================================================
+    const clock = new THREE.Clock();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const delta = clock.getDelta();
+      const time = performance.now() / 1000;
+
+      controls.update();
+
+      if (lightsOn) {
+        matLEDGreen.emissiveIntensity = 1.8 + Math.sin(time * 3) * 0.4;
+        matLEDCyan.emissiveIntensity = 2.0 + Math.sin(time * 2.5 + 1) * 0.4;
+        matLEDPink.emissiveIntensity = 1.8 + Math.sin(time * 2 + 2) * 0.5;
+      }
+
+      if (labelsVisible) {
+        labelMarkers.forEach(m => {
+          const v = m.pos.clone().project(camera);
+          if (v.z > 1) m.el.classList.remove('visible');
+          else {
+            m.el.style.left = `${(v.x * 0.5 + 0.5) * window.innerWidth}px`;
+            m.el.style.top = `${(-v.y * 0.5 + 0.5) * window.innerHeight}px`;
+            m.el.classList.add('visible');
+          }
+        });
+      } else {
+        labelMarkers.forEach(m => m.el.classList.remove('visible'));
+      }
+
+      if (tooltipPinned && pinnedDevice) {
+        const rep = interactiveObjects.find(o => o.userData.device === pinnedDevice);
+        if (rep) {
+          const wp = new THREE.Vector3();
+          rep.getWorldPosition(wp);
+          wp.project(camera);
+          if (wp.z < 1) {
+            showTooltip(pinnedDevice, (wp.x * 0.5 + 0.5) * window.innerWidth, (-wp.y * 0.5 + 0.5) * window.innerHeight);
+          }
+        }
+      }
+
+      composer.render();
+    }
+
+    animate();
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      composer.setSize(window.innerWidth, window.innerHeight);
+      const pr = renderer.getPixelRatio();
+      fxaa.material.uniforms['resolution'].value.x = 1 / (window.innerWidth * pr);
+      fxaa.material.uniforms['resolution'].value.y = 1 / (window.innerHeight * pr);
+    });
+  </script>
+</body>
+</html>
