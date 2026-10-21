@@ -1,0 +1,1346 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Intel 4004 · Reconstrucción Museística 3D Interactiva</title>
+  <style>
+    :root {
+      --amber: #c9a45c;
+      --amber-bright: #e8c97a;
+      --bg-dark: #0a0a0c;
+      --panel-bg: rgba(12, 12, 16, 0.88);
+      --text-main: #e8dcc8;
+      --text-dim: #a09078;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      overflow: hidden;
+      background-color: var(--bg-dark);
+      font-family: 'Courier New', Courier, monospace;
+      color: var(--text-main);
+      cursor: default;
+    }
+
+    #info-panel {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      max-width: 360px;
+      background: var(--panel-bg);
+      backdrop-filter: blur(10px);
+      border-left: 4px solid var(--amber);
+      padding: 18px 22px;
+      border-radius: 0 12px 12px 0;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    #info-panel h1 {
+      margin: 0 0 4px 0;
+      font-size: 1.9rem;
+      font-weight: 400;
+      letter-spacing: 1.5px;
+      color: #f5ead2;
+      font-family: 'Times New Roman', serif;
+      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+    }
+
+    #info-panel .subhead {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      margin-bottom: 12px;
+      border-bottom: 1px solid #3a3a44;
+      padding-bottom: 10px;
+      letter-spacing: 0.5px;
+    }
+
+    #info-panel .spec {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.78rem;
+      margin-bottom: 4px;
+      color: #c0c0c8;
+      line-height: 1.4;
+    }
+
+    #info-panel .spec span:first-child { color: var(--text-dim); flex-shrink: 0; }
+    #info-panel .spec span:last-child { color: #e8dcc8; font-weight: 600; text-align: right; padding-left: 8px; }
+
+    #device-tooltip {
+      position: absolute;
+      max-width: 340px;
+      min-width: 240px;
+      background: rgba(8, 8, 12, 0.96);
+      backdrop-filter: blur(14px);
+      border: 1px solid var(--amber);
+      border-radius: 10px;
+      padding: 16px 18px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(201, 164, 92, 0.15);
+      pointer-events: none;
+      z-index: 1000;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      color: var(--text-main);
+    }
+
+    #device-tooltip.visible { opacity: 1; transform: translateY(0); }
+
+    #device-tooltip h3 {
+      margin: 0 0 6px 0;
+      font-size: 1.05rem;
+      color: var(--amber-bright);
+      font-family: 'Times New Roman', serif;
+      letter-spacing: 0.8px;
+      border-bottom: 1px solid rgba(201, 164, 92, 0.3);
+      padding-bottom: 6px;
+    }
+
+    #device-tooltip .tt-sub { font-size: 0.72rem; color: var(--text-dim); margin-bottom: 10px; font-style: italic; }
+
+    #device-tooltip .tt-row {
+      display: flex; justify-content: space-between;
+      font-size: 0.72rem; margin-bottom: 4px; line-height: 1.35; gap: 10px;
+    }
+
+    #device-tooltip .tt-row span:first-child { color: var(--text-dim); flex-shrink: 0; }
+    #device-tooltip .tt-row span:last-child { color: #f0e6d2; text-align: right; font-weight: 600; }
+
+    #device-tooltip .tt-desc {
+      margin-top: 10px; font-size: 0.7rem; color: #b0b0b8; line-height: 1.45;
+      border-top: 1px solid rgba(201, 164, 92, 0.2); padding-top: 8px;
+      font-family: 'Courier New', monospace;
+    }
+
+    #controls {
+      position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
+      display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;
+      background: rgba(16, 16, 22, 0.82); backdrop-filter: blur(12px);
+      padding: 12px 22px; border-radius: 60px; border: 1px solid #3a3a4a;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.7); z-index: 20; max-width: 95vw;
+    }
+
+    #controls button {
+      background: transparent; border: 1px solid #5a5a6a; color: #d0c8b8;
+      padding: 8px 16px; border-radius: 30px; font-family: 'Courier New', monospace;
+      font-size: 0.72rem; font-weight: 600; letter-spacing: 0.8px; cursor: pointer;
+      transition: all 0.25s ease; text-transform: uppercase; white-space: nowrap;
+    }
+
+    #controls button:hover {
+      background: var(--amber); border-color: var(--amber); color: var(--bg-dark);
+      box-shadow: 0 0 20px rgba(201, 164, 92, 0.55);
+    }
+
+    #controls button.active {
+      background: var(--amber); border-color: var(--amber); color: var(--bg-dark);
+      box-shadow: 0 0 14px rgba(201, 164, 92, 0.4);
+    }
+
+    .label-marker {
+      position: absolute; background: rgba(10, 10, 14, 0.9);
+      border: 1px solid var(--amber); color: var(--text-main);
+      padding: 5px 12px; border-radius: 18px; font-size: 0.68rem; font-weight: 600;
+      letter-spacing: 0.6px; white-space: nowrap; pointer-events: none; opacity: 0;
+      transition: opacity 0.3s ease; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.8);
+      z-index: 100; transform: translate(-50%, -100%); margin-top: -10px;
+    }
+
+    .label-marker.visible { opacity: 1; }
+
+    #hover-hint {
+      position: absolute; bottom: 90px; left: 50%; transform: translateX(-50%);
+      background: rgba(10, 10, 14, 0.85); border: 1px solid rgba(201, 164, 92, 0.5);
+      color: var(--amber-bright); padding: 8px 20px; border-radius: 30px;
+      font-size: 0.72rem; letter-spacing: 1px; pointer-events: none; z-index: 15;
+      opacity: 0; transition: opacity 0.4s ease; text-align: center; backdrop-filter: blur(8px);
+    }
+
+    #hover-hint.visible { opacity: 1; }
+
+    #vignette {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none;
+      background: radial-gradient(circle at center, transparent 35%, rgba(0, 0, 0, 0.7) 100%);
+      z-index: 5;
+    }
+
+    @media (max-width: 800px) {
+      #info-panel { max-width: 240px; padding: 12px 14px; }
+      #info-panel h1 { font-size: 1.3rem; }
+      #info-panel .spec { font-size: 0.68rem; }
+      #controls button { padding: 6px 10px; font-size: 0.6rem; }
+      #controls { gap: 6px; padding: 8px 12px; }
+      #device-tooltip { max-width: 280px; }
+      #hover-hint { font-size: 0.62rem; padding: 6px 14px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="info-panel">
+    <h1>Intel 4004</h1>
+    <div class="subhead">1971 · El primer microprocesador comercial del mundo</div>
+    <div class="spec"><span>Transistores</span> <span>2.300</span></div>
+    <div class="spec"><span>Proceso</span> <span>10 µm (Silicon Gate)</span></div>
+    <div class="spec"><span>Arquitectura</span> <span>4 bits</span></div>
+    <div class="spec"><span>Velocidad</span> <span>740 kHz</span></div>
+    <div class="spec"><span>Instrucciones</span> <span>46 (conjunto)</span></div>
+    <div class="spec"><span>Pines</span> <span>16 (DIP)</span></div>
+    <div class="spec"><span>Diseñadores</span> <span>Faggin / Hoff / Mazor</span></div>
+    <div class="spec"><span>Precio 1971</span> <span>US$ 60</span></div>
+  </div>
+
+  <div id="device-tooltip"></div>
+  <div id="hover-hint">Pasa el cursor sobre los componentes para ver su información</div>
+
+  <div id="controls">
+    <button id="btn-rotate" class="active">Rotar</button>
+    <button id="btn-labels">Etiquetas</button>
+    <button id="btn-explode">Vista explosionada</button>
+    <button id="btn-lights">Encender/apagar</button>
+    <button id="btn-tape" class="active">Mover cintas</button>
+    <button id="btn-reset">Reiniciar cámara</button>
+  </div>
+
+  <div id="vignette"></div>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+    import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+    import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+    import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+    import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+    import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
+
+    // ============================================================
+    // BASE DE DATOS DE INFORMACIÓN
+    // ============================================================
+    const DEVICE_INFO = {
+      chip4004: {
+        title: 'Intel 4004 — Microprocesador',
+        subtitle: 'CPU de 4 bits · Encapsulado CERDIP de 16 pines',
+        specs: [
+          ['Transistores', '2.300'],
+          ['Proceso', '10 µm Silicon Gate'],
+          ['Arquitectura', '4 bits (nibble)'],
+          ['Velocidad', '740 kHz'],
+          ['Ciclo instrucción', '10.8 µs (1 byte)'],
+          ['Pines', '16 (DIP)'],
+          ['Tamaño die', '3 mm × 4 mm'],
+          ['Lanzamiento', '15 nov. 1971'],
+        ],
+        desc: 'El Intel 4004 fue el primer microprocesador comercial de la historia. Integraba en un solo chip la unidad central de proceso de una computadora. Diseñado originalmente para la calculadora Busicom 141-PF por Federico Faggin, Ted Hoff y Masatoshi Shima. Podía ejecutar 92.000 operaciones por segundo y costaba US$ 60.'
+      },
+      chip4001: {
+        title: 'Intel 4001 — ROM',
+        subtitle: 'Memoria de solo lectura · 256 × 8 bits',
+        specs: [
+          ['Capacidad', '256 bytes (2.048 bits)'],
+          ['Tipo', 'Mask ROM'],
+          ['Acceso', '470 ns'],
+          ['Encapsulado', 'DIP 16 pines'],
+          ['Función', 'Programa almacenado'],
+          ['Tensión', '+15 V (Vdd)'],
+        ],
+        desc: 'El Intel 4001 fue la ROM de la familia MCS-4. Almacenaba el programa de la calculadora Busicom y los microprogramas del sistema. Se conectaba directamente al bus del 4004 y contenía 256 bytes de memoria no volátil programada en fábrica.'
+      },
+      chip4002: {
+        title: 'Intel 4002 — RAM + Puerto E/S',
+        subtitle: 'Memoria RAM · 40 × 4 bits + 4 pines de E/S',
+        specs: [
+          ['Capacidad', '80 nibbles (40 bytes)'],
+          ['Tipo', 'RAM dinámica'],
+          ['E/S', '4 líneas de salida'],
+          ['Acceso', '100 ns'],
+          ['Encapsulado', 'DIP 16 pines'],
+          ['Tensión', '-10 V (Vss)'],
+        ],
+        desc: 'El Intel 4002 combinaba 40 bytes de RAM con un puerto de salida de 4 bits. Permitió a la familia MCS-4 disponer de memoria de trabajo y controlar directamente periféricos como displays y teclados. Fue una innovación de integración temprana.'
+      },
+      chip4003: {
+        title: 'Intel 4003 — Registro de Desplazamiento',
+        subtitle: 'Expansor de E/S · 10 bits',
+        specs: [
+          ['Función', 'Desplazamiento serie'],
+          ['Bits', '10 (salida paralelo)'],
+          ['Uso', 'Teclado, display, impresora'],
+          ['Encapsulado', 'DIP 16 pines'],
+          ['Reloj', 'Sincronizado al 4004'],
+          ['Tensión', '+15 V'],
+        ],
+        desc: 'El Intel 4003 era un registro de desplazamiento de 10 bits usado para expandir las capacidades de E/S. Conectaba el 4004 con teclados, displays de 7 segmentos e impresoras de la calculadora Busicom, ampliando el sistema a decenas de líneas de E/S.'
+      },
+      pcb: {
+        title: 'Placa Base (PCB) · MCS-4',
+        subtitle: 'Circuito impreso de la calculadora Busicom 141-PF',
+        specs: [
+          ['Material', 'FR-4 (fibra de vidrio)'],
+          ['Capas', '2 (doble cara)'],
+          ['Acabado', 'Estaño-plomo (HASL)'],
+          ['Serigrafía', 'Blanca'],
+          ['Bus', '4 bits + control'],
+          ['Época', '1971'],
+        ],
+        desc: 'La placa base del sistema MCS-4 montaba el conjunto de chips Intel 4001/4002/4003/4004. Las pistas de cobre de 10 milésimas conectaban los 16 pines de cada chip al bus de 4 bits. Fue la base del primer microcomputador comercial.'
+      },
+      bus: {
+        title: 'Bus de Datos · 4 bits',
+        subtitle: 'Conexión entre los chips MCS-4',
+        specs: [
+          ['Ancho', '4 bits (nibble)'],
+          ['Velocidad', '740 kHz'],
+          ['Señales', 'Datos, sync, reset'],
+          ['Nivel', 'Lógica positiva 15 V'],
+          ['Protocolo', 'Sincrónico maestro-esclavo'],
+          ['Uso', 'Transferencia entre chips'],
+        ],
+        desc: 'El bus del MCS-4 transportaba nibbles de 4 bits a 740 kHz entre el 4004 y los chips de memoria y E/S. IBM había popularizado buses de 8 bits en mainframes; Intel demostró con el 4004 que 4 bits bastaban para control de periféricos.'
+      },
+      cristal: {
+        title: 'Oscilador de Cuarzo',
+        subtitle: 'Reloj del sistema · 740 kHz',
+        specs: [
+          ['Frecuencia', '740 kHz'],
+          ['Ciclo', '1,35 µs'],
+          ['Tipo', 'Cristal de cuarzo'],
+          ['Precisión', '±100 ppm'],
+          ['Encapsulado', 'HC-6/U'],
+          ['Función', 'Clock maestro'],
+        ],
+        desc: 'El oscilador de cuarzo proporcionaba el reloj maestro al Intel 4004. A 740 kHz, cada ciclo de instrucción duraba aproximadamente 10,8 µs. Este reloj sincronizaba todos los chips de la familia MCS-4.'
+      },
+      display: {
+        title: 'Display de 7 Segmentos',
+        subtitle: 'Salida visible de la calculadora Busicom',
+        specs: [
+          ['Tipo', 'LED / VFD'],
+          ['Dígitos', '12'],
+          ['Segmentos', '7 por dígito'],
+          ['Control', '4003 (registro)'],
+          ['Color', 'Rojo / verde'],
+          ['Uso', 'Visualización de resultados'],
+        ],
+        desc: 'El display de la calculadora Busicom 141-PF mostraba los resultados de las operaciones del Intel 4004. Se controlaba a través de los registros de desplazamiento 4003 y los puertos de salida del 4002.'
+      },
+      teclado: {
+        title: 'Teclado Numérico',
+        subtitle: 'Entrada de datos de la calculadora',
+        specs: [
+          ['Teclas', '20 – 30'],
+          ['Tipo', 'Matriz de contactos'],
+          ['Escaneo', 'Por el 4003'],
+          ['Funciones', '0-9, +, -, ×, ÷, ='],
+          ['Retroceso', 'Sin iluminación'],
+          ['Uso', 'Entrada de operandos'],
+        ],
+        desc: 'El teclado de la calculadora Busicom 141-PF permitía al operador introducir operandos y operaciones. El Intel 4004 escaneaba la matriz de teclas a través de los chips 4003 y procesaba las pulsaciones según el programa almacenado en la ROM 4001.'
+      }
+    };
+
+    // ============================================================
+    // ESCENA, CÁMARA, RENDERER — BRILLO REDUCIDO
+    // ============================================================
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x08080a);
+    scene.fog = new THREE.FogExp2(0x08080a, 0.02);
+
+    const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.05, 60);
+    camera.position.set(2.2, 1.6, 3.2);
+    camera.lookAt(0, 0.3, 0);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    // ⬇️ Exposición reducida (antes 1.1)
+    renderer.toneMappingExposure = 0.78;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    document.body.appendChild(renderer.domElement);
+
+    // PMREM — reflejos más discretos
+    const pmremGenerator = new THREE.PMREMGenerator(renderer);
+    pmremGenerator.compileEquirectangularShader();
+    const envMap = pmremGenerator.fromScene(new RoomEnvironment(renderer), 0.04).texture;
+    scene.environment = envMap;
+    // ⬇️ Intensidad global de entorno reducida (antes 1.0 por defecto)
+    scene.environmentIntensity = 0.45;
+
+    // Controles
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, 0.3, 0);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.06;
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 0.6;
+    controls.maxPolarAngle = Math.PI / 2.1;
+    controls.minDistance = 1.2;
+    controls.maxDistance = 12;
+    controls.enableZoom = true;
+    controls.zoomSpeed = 0.8;
+
+    // ============================================================
+    // ILUMINACIÓN — INTENSIDADES REDUCIDAS
+    // ============================================================
+    // Ambiental más sutil (antes 0.55)
+    scene.add(new THREE.AmbientLight(0x30303a, 0.32));
+
+    // Hemisférica reducida (antes 0.9)
+    const hemiLight = new THREE.HemisphereLight(0x6a7a8a, 0x1a1a1e, 0.5);
+    scene.add(hemiLight);
+
+    // Luz principal más contenida (antes 2.2)
+    const keyLight = new THREE.DirectionalLight(0xffeedd, 1.15);
+    keyLight.position.set(3, 5, 3);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.width = 2048;
+    keyLight.shadow.mapSize.height = 2048;
+    keyLight.shadow.camera.near = 0.1;
+    keyLight.shadow.camera.far = 15;
+    keyLight.shadow.camera.left = -4;
+    keyLight.shadow.camera.right = 4;
+    keyLight.shadow.camera.top = 4;
+    keyLight.shadow.camera.bottom = -4;
+    keyLight.shadow.bias = -0.0004;
+    keyLight.shadow.radius = 4;
+    scene.add(keyLight);
+
+    // Relleno suave (antes 0.7)
+    const fillLight = new THREE.DirectionalLight(0xffccaa, 0.35);
+    fillLight.position.set(-3, 2.5, -2);
+    scene.add(fillLight);
+
+    // Borde frío contenido (antes 15)
+    const rimLight = new THREE.PointLight(0x6688cc, 6, 8);
+    rimLight.position.set(0, 2.5, -2);
+    scene.add(rimLight);
+
+    // Acentos muy suaves (antes 12 y 10)
+    const accentLight1 = new THREE.PointLight(0xffaa66, 4.5, 4);
+    accentLight1.position.set(0.4, 1.2, 0.6);
+    scene.add(accentLight1);
+
+    const accentLight2 = new THREE.PointLight(0xffaa66, 3.5, 4);
+    accentLight2.position.set(-0.5, 1.0, -0.3);
+    scene.add(accentLight2);
+
+    // ============================================================
+    // TEXTURAS PROCEDURALES
+    // ============================================================
+    function createPCBTexture() {
+      const size = 1024;
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#0e3a1e';
+      ctx.fillRect(0, 0, size, size);
+      for (let i = 0; i < 3000; i++) {
+        ctx.fillStyle = `rgba(${20 + Math.random()*40}, ${50 + Math.random()*50}, ${20 + Math.random()*30}, 0.15)`;
+        ctx.fillRect(Math.random()*size, Math.random()*size, Math.random()*3, Math.random()*3);
+      }
+      ctx.strokeStyle = 'rgba(200, 160, 70, 0.75)';
+      ctx.lineWidth = 2;
+      for (let i = 0; i < 60; i++) {
+        const x1 = Math.random()*size, y1 = Math.random()*size;
+        const x2 = x1 + (Math.random()-0.5)*300;
+        const y2 = y1 + (Math.random()-0.5)*300;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x1 + (x2-x1)*0.5, y2);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+      }
+      for (let i = 0; i < 80; i++) {
+        ctx.fillStyle = 'rgba(212, 175, 55, 0.9)';
+        ctx.beginPath();
+        ctx.arc(Math.random()*size, Math.random()*size, 3+Math.random()*4, 0, Math.PI*2);
+        ctx.fill();
+      }
+      ctx.fillStyle = 'rgba(230, 230, 230, 0.55)';
+      ctx.font = 'bold 14px "Courier New", monospace';
+      ctx.fillText('MCS-4 · INTEL 1971', 30, size - 30);
+      ctx.fillText('4004', size - 120, 50);
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    function createChipLabelTexture(title, sub, color = '#d4af37') {
+      const canvas = document.createElement('canvas');
+      canvas.width = 512; canvas.height = 256;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#1a1a1e';
+      ctx.fillRect(0, 0, 512, 256);
+      ctx.fillStyle = '#e8e0d0';
+      ctx.font = 'bold 90px "Times New Roman", serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(title, 256, 140);
+      if (sub) {
+        ctx.font = '28px "Courier New", monospace';
+        ctx.fillStyle = '#b0a58c';
+        ctx.fillText(sub, 256, 190);
+      }
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(60, 60, 14, 0, Math.PI*2);
+      ctx.fill();
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    function createCeramicTexture() {
+      const size = 256;
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#d8d0c0';
+      ctx.fillRect(0, 0, size, size);
+      const img = ctx.getImageData(0, 0, size, size);
+      const d = img.data;
+      for (let i = 0; i < d.length; i += 4) {
+        const n = (Math.random()-0.5)*18;
+        d[i] += n; d[i+1] += n; d[i+2] += n;
+      }
+      ctx.putImageData(img, 0, 0);
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    function createFloorTexture() {
+      const size = 512;
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#15151a';
+      ctx.fillRect(0, 0, size, size);
+      ctx.strokeStyle = '#2a2a32';
+      ctx.lineWidth = 2;
+      const step = size / 5;
+      for (let i = 0; i <= 5; i++) {
+        ctx.beginPath(); ctx.moveTo(i*step, 0); ctx.lineTo(i*step, size); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, i*step); ctx.lineTo(size, i*step); ctx.stroke();
+      }
+      const img = ctx.getImageData(0, 0, size, size);
+      const d = img.data;
+      for (let i = 0; i < d.length; i += 4) {
+        const n = (Math.random()-0.5)*12;
+        d[i] += n; d[i+1] += n; d[i+2] += n;
+      }
+      ctx.putImageData(img, 0, 0);
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(4, 4);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    function createPlaqueTexture() {
+      const canvas = document.createElement('canvas');
+      canvas.width = 1024; canvas.height = 512;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#1c1a16';
+      ctx.fillRect(0, 0, 1024, 512);
+      ctx.strokeStyle = '#c9a45c';
+      ctx.lineWidth = 8;
+      ctx.strokeRect(20, 20, 984, 472);
+      ctx.fillStyle = '#f0e6d2';
+      ctx.font = 'bold 78px "Times New Roman", serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Intel 4004', 512, 180);
+      ctx.font = '32px "Courier New", monospace';
+      ctx.fillStyle = '#c9a45c';
+      ctx.fillText('EL PRIMER MICROPROCESADOR COMERCIAL', 512, 240);
+      ctx.font = '26px "Courier New", monospace';
+      ctx.fillStyle = '#a09078';
+      ctx.fillText('1971 · 2.300 TRANSISTORES · 10 µm · 740 kHz', 512, 310);
+      ctx.fillText('DISEÑADO POR FEDERICO FAGGIN · TED HOFF · MASATOSHI SHIMA', 512, 360);
+      ctx.strokeStyle = '#c9a45c';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(220, 400);
+      ctx.lineTo(804, 400);
+      ctx.stroke();
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    // ============================================================
+    // MATERIALES PBR — REFLEJOS REDUCIDOS
+    // ============================================================
+    const pcbTex = createPCBTexture();
+    const ceramicTex = createCeramicTexture();
+
+    const matPCB = new THREE.MeshStandardMaterial({
+      map: pcbTex, roughness: 0.6, metalness: 0.12, color: 0xdddddd,
+      envMapIntensity: 0.45,
+    });
+
+    const matCeramic = new THREE.MeshPhysicalMaterial({
+      map: ceramicTex, roughness: 0.4, metalness: 0.05,
+      clearcoat: 0.4, clearcoatRoughness: 0.3, color: 0xc8c0b0,
+      envMapIntensity: 0.5,
+    });
+
+    const matCeramicDark = new THREE.MeshPhysicalMaterial({
+      map: ceramicTex, roughness: 0.45, metalness: 0.05,
+      clearcoat: 0.35, clearcoatRoughness: 0.3, color: 0x24242a,
+      envMapIntensity: 0.45,
+    });
+
+    const matGoldPin = new THREE.MeshStandardMaterial({
+      color: 0xb8963c, roughness: 0.35, metalness: 0.92,
+      envMapIntensity: 0.75,
+    });
+
+    const matSiliconDie = new THREE.MeshPhysicalMaterial({
+      color: 0x1e1e2a, roughness: 0.25, metalness: 0.6,
+      clearcoat: 0.7, clearcoatRoughness: 0.15,
+      iridescence: 0.4, iridescenceIOR: 1.6,
+      envMapIntensity: 0.8,
+    });
+
+    const matLeadFrame = new THREE.MeshStandardMaterial({
+      color: 0x6a6a70, roughness: 0.45, metalness: 0.85,
+      envMapIntensity: 0.6,
+    });
+
+    const matBlackPlastic = new THREE.MeshStandardMaterial({
+      color: 0x0e0e12, roughness: 0.65, metalness: 0.12,
+      envMapIntensity: 0.4,
+    });
+
+    const matSolder = new THREE.MeshStandardMaterial({
+      color: 0x9a9aa0, roughness: 0.4, metalness: 0.9,
+      envMapIntensity: 0.7,
+    });
+
+    const matQuartz = new THREE.MeshPhysicalMaterial({
+      color: 0xa8b4c0, roughness: 0.15, metalness: 0.1,
+      transmission: 0.7, transparent: true, opacity: 0.55,
+      clearcoat: 0.8, ior: 1.5, envMapIntensity: 0.6,
+    });
+
+    // Materiales emisivos — intensidad reducida
+    const matLEDRed = new THREE.MeshStandardMaterial({
+      color: 0xff2200, emissive: 0xff2200, emissiveIntensity: 1.2, roughness: 0.4,
+    });
+
+    const matLEDGreen = new THREE.MeshStandardMaterial({
+      color: 0x22ff44, emissive: 0x22ff44, emissiveIntensity: 0.9, roughness: 0.4,
+    });
+
+    const matLEDAmber = new THREE.MeshStandardMaterial({
+      color: 0xffaa00, emissive: 0xff8800, emissiveIntensity: 1.0, roughness: 0.4,
+    });
+
+    [matLEDRed, matLEDGreen, matLEDAmber].forEach(m => {
+      m.userData.baseIntensity = m.emissiveIntensity;
+    });
+
+    // ============================================================
+    // GRUPO PRINCIPAL
+    // ============================================================
+    const boardGroup = new THREE.Group();
+    scene.add(boardGroup);
+
+    // Suelo
+    const floor = new THREE.Mesh(
+      new THREE.CircleGeometry(12, 64),
+      new THREE.MeshStandardMaterial({
+        map: createFloorTexture(), roughness: 0.9, metalness: 0.08,
+        envMapIntensity: 0.3,
+      })
+    );
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -0.01;
+    floor.receiveShadow = true;
+    scene.add(floor);
+
+    // ============================================================
+    // PCB
+    // ============================================================
+    const boardW = 4.0, boardD = 2.8, boardT = 0.06;
+    const pcb = new THREE.Mesh(new THREE.BoxGeometry(boardW, boardT, boardD), matPCB);
+    pcb.position.y = 0.03;
+    pcb.castShadow = true;
+    pcb.receiveShadow = true;
+    pcb.userData.device = 'pcb';
+    boardGroup.add(pcb);
+
+    const holeGeo = new THREE.CylinderGeometry(0.06, 0.06, boardT + 0.02, 12);
+    [[-boardW/2+0.2, -boardD/2+0.2], [boardW/2-0.2, -boardD/2+0.2], [-boardW/2+0.2, boardD/2-0.2], [boardW/2-0.2, boardD/2-0.2]].forEach(p => {
+      const hole = new THREE.Mesh(holeGeo, matBlackPlastic);
+      hole.position.set(p[0], 0.03, p[1]);
+      boardGroup.add(hole);
+    });
+
+    // ============================================================
+    // FUNCIÓN DIP-16
+    // ============================================================
+    function createDIP16(posX, posZ, chipKey, labelTitle, labelSub, chipColor = 0xd8d0c0) {
+      const group = new THREE.Group();
+      const chipW = 0.55, chipD = 0.22, chipH = 0.08;
+
+      const bodyMat = chipColor === 0xd8d0c0 ? matCeramic : matCeramicDark;
+      const body = new THREE.Mesh(new THREE.BoxGeometry(chipW, chipH, chipD), bodyMat);
+      body.castShadow = true;
+      body.receiveShadow = true;
+      body.position.y = chipH/2 + 0.06;
+      body.userData.device = chipKey;
+      group.add(body);
+
+      const bevel = new THREE.Mesh(new THREE.BoxGeometry(0.06, chipH + 0.002, 0.06), bodyMat);
+      bevel.position.set(-chipW/2 + 0.04, chipH/2 + 0.06, -chipD/2 + 0.04);
+      bevel.rotation.y = Math.PI/4;
+      group.add(bevel);
+
+      const labelTex = createChipLabelTexture(labelTitle, labelSub);
+      const labelMat = new THREE.MeshStandardMaterial({
+        map: labelTex, roughness: 0.5, metalness: 0.2, envMapIntensity: 0.4,
+      });
+      const label = new THREE.Mesh(new THREE.PlaneGeometry(chipW * 0.92, chipD * 0.9), labelMat);
+      label.rotation.x = -Math.PI/2;
+      label.position.set(0, chipH + 0.065, 0);
+      label.userData.device = chipKey;
+      group.add(label);
+
+      const pinGeo = new THREE.BoxGeometry(0.04, 0.015, 0.14);
+      for (let side = 0; side < 2; side++) {
+        for (let i = 0; i < 8; i++) {
+          const pin = new THREE.Mesh(pinGeo, matGoldPin);
+          pin.castShadow = true;
+          pin.receiveShadow = true;
+          const z = (side === 0 ? -1 : 1) * (chipD/2 + 0.07);
+          const x = -chipW/2 + 0.08 + i * 0.055;
+          pin.position.set(x, 0.07, z);
+          pin.rotation.x = (side === 0 ? 0.35 : -0.35);
+          pin.userData.device = chipKey;
+          group.add(pin);
+        }
+      }
+
+      const dot = new THREE.Mesh(new THREE.CircleGeometry(0.02, 12), matLEDAmber);
+      dot.rotation.x = -Math.PI/2;
+      dot.position.set(-chipW/2 + 0.06, chipH + 0.067, -chipD/2 + 0.06);
+      dot.userData.device = chipKey;
+      group.add(dot);
+
+      for (let side = 0; side < 2; side++) {
+        for (let i = 0; i < 8; i++) {
+          const solder = new THREE.Mesh(new THREE.SphereGeometry(0.025, 6, 6), matSolder);
+          const z = (side === 0 ? -1 : 1) * (chipD/2 + 0.05);
+          const x = -chipW/2 + 0.08 + i * 0.055;
+          solder.position.set(x, 0.055, z);
+          solder.userData.device = chipKey;
+          group.add(solder);
+        }
+      }
+
+      group.position.set(posX, 0, posZ);
+      return group;
+    }
+
+    // ============================================================
+    // INTEL 4004 (CPU)
+    // ============================================================
+    const cpuGroup = new THREE.Group();
+
+    const cpuBody = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.1, 0.3), matCeramic);
+    cpuBody.position.y = 0.11;
+    cpuBody.castShadow = true;
+    cpuBody.receiveShadow = true;
+    cpuBody.userData.device = 'chip4004';
+    cpuGroup.add(cpuBody);
+
+    const cpuLid = new THREE.Mesh(
+      new THREE.BoxGeometry(0.55, 0.02, 0.2),
+      new THREE.MeshStandardMaterial({
+        color: 0xa8863e, roughness: 0.4, metalness: 0.9, envMapIntensity: 0.75,
+      })
+    );
+    cpuLid.position.y = 0.17;
+    cpuLid.castShadow = true;
+    cpuLid.receiveShadow = true;
+    cpuLid.userData.device = 'chip4004';
+    cpuGroup.add(cpuLid);
+
+    const cpuLabel = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.5, 0.15),
+      new THREE.MeshStandardMaterial({
+        map: createChipLabelTexture('4004', 'INTEL 1971'),
+        roughness: 0.5, metalness: 0.2, transparent: true, envMapIntensity: 0.4,
+      })
+    );
+    cpuLabel.rotation.x = -Math.PI/2;
+    cpuLabel.position.y = 0.182;
+    cpuLabel.userData.device = 'chip4004';
+    cpuGroup.add(cpuLabel);
+
+    const pinGeo4004 = new THREE.BoxGeometry(0.045, 0.018, 0.16);
+    for (let side = 0; side < 2; side++) {
+      for (let i = 0; i < 8; i++) {
+        const pin = new THREE.Mesh(pinGeo4004, matGoldPin);
+        pin.castShadow = true;
+        pin.receiveShadow = true;
+        const z = (side === 0 ? -1 : 1) * (0.3/2 + 0.08);
+        const x = -0.35 + 0.09 + i * 0.065;
+        pin.position.set(x, 0.09, z);
+        pin.rotation.x = (side === 0 ? 0.3 : -0.3);
+        pin.userData.device = 'chip4004';
+        cpuGroup.add(pin);
+      }
+    }
+
+    const cpuDot = new THREE.Mesh(new THREE.CircleGeometry(0.025, 12), matLEDAmber);
+    cpuDot.rotation.x = -Math.PI/2;
+    cpuDot.position.set(-0.3, 0.165, -0.1);
+    cpuDot.userData.device = 'chip4004';
+    cpuGroup.add(cpuDot);
+
+    cpuGroup.position.set(0, 0, 0);
+    boardGroup.add(cpuGroup);
+
+    // ============================================================
+    // CHIPS 4001, 4002, 4003
+    // ============================================================
+    const rom4001 = createDIP16(-1.1, -0.6, 'chip4001', '4001', 'ROM 256×8');
+    boardGroup.add(rom4001);
+
+    const ram4002 = createDIP16(1.1, -0.6, 'chip4002', '4002', 'RAM 40×4');
+    boardGroup.add(ram4002);
+
+    const sreg4003 = createDIP16(0, 0.7, 'chip4003', '4003', 'S/R 10 bits');
+    boardGroup.add(sreg4003);
+
+    // ============================================================
+    // BUS
+    // ============================================================
+    function createTrace(points, radius = 0.012) {
+      const curve = new THREE.CatmullRomCurve3(points);
+      const tube = new THREE.Mesh(
+        new THREE.TubeGeometry(curve, 24, radius, 6, false),
+        new THREE.MeshStandardMaterial({
+          color: 0xa8863e, roughness: 0.5, metalness: 0.85, envMapIntensity: 0.6,
+        })
+      );
+      tube.castShadow = true;
+      tube.receiveShadow = true;
+      tube.userData.device = 'bus';
+      return tube;
+    }
+
+    boardGroup.add(createTrace([
+      new THREE.Vector3(-0.35, 0.065, 0),
+      new THREE.Vector3(-0.7, 0.065, -0.3),
+      new THREE.Vector3(-1.1, 0.065, -0.6),
+    ]));
+    boardGroup.add(createTrace([
+      new THREE.Vector3(0.35, 0.065, 0),
+      new THREE.Vector3(0.7, 0.065, -0.3),
+      new THREE.Vector3(1.1, 0.065, -0.6),
+    ]));
+    boardGroup.add(createTrace([
+      new THREE.Vector3(0, 0.065, 0.15),
+      new THREE.Vector3(0, 0.065, 0.4),
+      new THREE.Vector3(0, 0.065, 0.7),
+    ]));
+    boardGroup.add(createTrace([
+      new THREE.Vector3(-0.35, 0.065, 0.05),
+      new THREE.Vector3(-1.3, 0.065, 0.4),
+      new THREE.Vector3(-1.6, 0.065, 0.9),
+    ]));
+
+    // ============================================================
+    // OSCILADOR DE CUARZO
+    // ============================================================
+    const quartzGroup = new THREE.Group();
+
+    const quartzBase = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.06, 24), matLeadFrame);
+    quartzBase.position.y = 0.06;
+    quartzBase.castShadow = true;
+    quartzBase.receiveShadow = true;
+    quartzBase.userData.device = 'cristal';
+    quartzGroup.add(quartzBase);
+
+    const quartzCap = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.22, 24), matQuartz);
+    quartzCap.position.y = 0.2;
+    quartzCap.castShadow = true;
+    quartzCap.receiveShadow = true;
+    quartzCap.userData.device = 'cristal';
+    quartzGroup.add(quartzCap);
+
+    const quartzInner = new THREE.Mesh(
+      new THREE.BoxGeometry(0.06, 0.16, 0.02),
+      new THREE.MeshStandardMaterial({
+        color: 0xb0b8c0, roughness: 0.2, metalness: 0.3,
+        emissive: 0x111822, emissiveIntensity: 0.15, envMapIntensity: 0.4,
+      })
+    );
+    quartzInner.position.y = 0.2;
+    quartzInner.userData.device = 'cristal';
+    quartzGroup.add(quartzInner);
+
+    for (let i = 0; i < 2; i++) {
+      const qpin = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.12, 6), matGoldPin);
+      qpin.position.set(-0.1 + i * 0.2, 0.035, 0);
+      qpin.userData.device = 'cristal';
+      quartzGroup.add(qpin);
+    }
+
+    quartzGroup.position.set(-1.6, 0, 0.9);
+    boardGroup.add(quartzGroup);
+
+    // ============================================================
+    // DISPLAY
+    // ============================================================
+    const displayGroup = new THREE.Group();
+
+    const displayCase = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.15, 0.5), matBlackPlastic);
+    displayCase.castShadow = true;
+    displayCase.receiveShadow = true;
+    displayCase.position.y = 0.075;
+    displayCase.userData.device = 'display';
+    displayGroup.add(displayCase);
+
+    const digitPositions = [-0.55, -0.18, 0.19, 0.56];
+    const segGeo = new THREE.BoxGeometry(0.06, 0.012, 0.15);
+    const segmentColors = [matLEDRed, matLEDRed, matLEDRed, matLEDRed];
+
+    digitPositions.forEach((dx, di) => {
+      const segPositions = [
+        [0, 0.06, 0], [0, -0.06, 0], [-0.06, 0, 0], [0.06, 0, 0],
+      ];
+      segPositions.forEach(sp => {
+        const seg = new THREE.Mesh(segGeo, segmentColors[di]);
+        seg.position.set(dx + sp[0], 0.16 + sp[1] * 0.2, sp[2]);
+        seg.rotation.x = Math.PI/2;
+        seg.userData.device = 'display';
+        displayGroup.add(seg);
+      });
+    });
+
+    displayGroup.position.set(0, 0, 1.3);
+    boardGroup.add(displayGroup);
+
+    // ============================================================
+    // TECLADO
+    // ============================================================
+    const keyboardGroup = new THREE.Group();
+
+    const keyGeo = new THREE.BoxGeometry(0.14, 0.05, 0.14);
+    const keyMat = new THREE.MeshStandardMaterial({
+      color: 0x1a1a1e, roughness: 0.65, metalness: 0.18, envMapIntensity: 0.4,
+    });
+
+    for (let row = 0; row < 4; row++) {
+      for (let col = 0; col < 5; col++) {
+        const key = new THREE.Mesh(keyGeo, keyMat);
+        key.castShadow = true;
+        key.receiveShadow = true;
+        key.position.set(-0.4 + col * 0.2, 0.1, 0.3 + row * 0.2);
+        key.userData.device = 'teclado';
+        keyboardGroup.add(key);
+      }
+    }
+
+    const kbBase = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.05, 0.95), matBlackPlastic);
+    kbBase.position.set(0, 0.05, 0.6);
+    kbBase.castShadow = true;
+    kbBase.receiveShadow = true;
+    kbBase.userData.device = 'teclado';
+    keyboardGroup.add(kbBase);
+
+    keyboardGroup.position.set(1.2, 0, 1.0);
+    boardGroup.add(keyboardGroup);
+
+    // ============================================================
+    // PLACA CONMEMORATIVA
+    // ============================================================
+    const plaqueTex = createPlaqueTexture();
+    const plaqueMat = new THREE.MeshStandardMaterial({
+      map: plaqueTex, roughness: 0.5, metalness: 0.6,
+      side: THREE.DoubleSide, envMapIntensity: 0.5,
+    });
+    const plaque = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.7), plaqueMat);
+    plaque.rotation.x = -Math.PI/2;
+    plaque.rotation.z = 0.08;
+    plaque.position.set(-1.5, 0.005, 1.5);
+    plaque.receiveShadow = true;
+    boardGroup.add(plaque);
+
+    // ============================================================
+    // CABLES
+    // ============================================================
+    function createCable(points, radius = 0.025, color = 0x2a2a2e) {
+      const curve = new THREE.CatmullRomCurve3(points);
+      const tube = new THREE.Mesh(
+        new THREE.TubeGeometry(curve, 32, radius, 8, false),
+        new THREE.MeshStandardMaterial({ color, roughness: 0.8, metalness: 0.2, envMapIntensity: 0.35 })
+      );
+      tube.castShadow = true;
+      tube.receiveShadow = true;
+      return tube;
+    }
+
+    boardGroup.add(createCable([
+      new THREE.Vector3(-1.8, 0.07, 0.2),
+      new THREE.Vector3(-2.2, 0.07, 0.6),
+      new THREE.Vector3(-2.3, 0.07, 1.2),
+    ], 0.03, 0x8a5a30));
+
+    boardGroup.add(createCable([
+      new THREE.Vector3(1.8, 0.07, 0.2),
+      new THREE.Vector3(2.2, 0.07, 0.6),
+      new THREE.Vector3(2.3, 0.07, 1.2),
+    ], 0.03, 0x8a5a30));
+
+    // ============================================================
+    // POST-PROCESADO — BLOOM REDUCIDO
+    // ============================================================
+    const composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera));
+
+    // ⬇️ Bloom más sutil (antes 0.9 / 0.65 / 0.5)
+    const bloomPass = new UnrealBloomPass(
+      new THREE.Vector2(window.innerWidth, window.innerHeight),
+      0.55, 0.3, 0.9
+    );
+    bloomPass.threshold = 0.5;
+    bloomPass.strength = 0.35;
+    bloomPass.radius = 0.35;
+    composer.addPass(bloomPass);
+
+    const fxaaPass = new ShaderPass(FXAAShader);
+    const pr = renderer.getPixelRatio();
+    fxaaPass.material.uniforms['resolution'].value.x = 1 / (window.innerWidth * pr);
+    fxaaPass.material.uniforms['resolution'].value.y = 1 / (window.innerHeight * pr);
+    composer.addPass(fxaaPass);
+
+    // ============================================================
+    // INTERACCIÓN
+    // ============================================================
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    const tooltip = document.getElementById('device-tooltip');
+    let hoveredDevice = null;
+    let tooltipPinned = false;
+    let pinnedDevice = null;
+
+    const interactiveObjects = [];
+    scene.traverse(obj => {
+      if (obj.isMesh && obj.userData.device) {
+        interactiveObjects.push(obj);
+      }
+    });
+
+    function showTooltip(deviceKey, screenX, screenY) {
+      const info = DEVICE_INFO[deviceKey];
+      if (!info) return;
+
+      let html = `<h3>${info.title}</h3>`;
+      html += `<div class="tt-sub">${info.subtitle}</div>`;
+      info.specs.forEach(([k, v]) => {
+        html += `<div class="tt-row"><span>${k}</span><span>${v}</span></div>`;
+      });
+      html += `<div class="tt-desc">${info.desc}</div>`;
+      tooltip.innerHTML = html;
+
+      let x = screenX + 18;
+      let y = screenY + 18;
+      const rect = tooltip.getBoundingClientRect();
+      if (x + rect.width > window.innerWidth - 10) x = screenX - rect.width - 18;
+      if (y + rect.height > window.innerHeight - 10) y = screenY - rect.height - 18;
+      if (x < 10) x = 10;
+      if (y < 10) y = 10;
+
+      tooltip.style.left = `${x}px`;
+      tooltip.style.top = `${y}px`;
+      tooltip.classList.add('visible');
+    }
+
+    function hideTooltip() {
+      if (!tooltipPinned) tooltip.classList.remove('visible');
+    }
+
+    window.addEventListener('pointermove', (e) => {
+      mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects(interactiveObjects, false);
+
+      if (intersects.length > 0) {
+        const obj = intersects[0].object;
+        const deviceKey = obj.userData.device;
+        if (deviceKey) {
+          if (hoveredDevice !== deviceKey) {
+            hoveredDevice = deviceKey;
+            document.body.style.cursor = 'pointer';
+          }
+          showTooltip(deviceKey, e.clientX, e.clientY);
+        }
+      } else {
+        if (hoveredDevice !== null && !tooltipPinned) {
+          hoveredDevice = null;
+          hideTooltip();
+          document.body.style.cursor = 'default';
+        }
+      }
+    });
+
+    window.addEventListener('pointerdown', (e) => {
+      if (e.target.closest('#controls') || e.target.closest('#info-panel')) return;
+
+      mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects(interactiveObjects, false);
+
+      if (intersects.length > 0) {
+        const deviceKey = intersects[0].object.userData.device;
+        if (deviceKey) {
+          if (tooltipPinned && pinnedDevice === deviceKey) {
+            tooltipPinned = false;
+            pinnedDevice = null;
+            hideTooltip();
+          } else {
+            tooltipPinned = true;
+            pinnedDevice = deviceKey;
+            showTooltip(deviceKey, e.clientX, e.clientY);
+          }
+        }
+      } else {
+        if (tooltipPinned) {
+          tooltipPinned = false;
+          pinnedDevice = null;
+          hideTooltip();
+        }
+      }
+    });
+
+    // ============================================================
+    // ETIQUETAS
+    // ============================================================
+    const labelMarkers = [];
+    function createLabelMarker(text, position3D) {
+      const el = document.createElement('div');
+      el.className = 'label-marker';
+      el.textContent = text;
+      document.body.appendChild(el);
+      labelMarkers.push({ element: el, position: position3D.clone() });
+    }
+
+    createLabelMarker('Intel 4004 · CPU', new THREE.Vector3(0, 0.35, 0));
+    createLabelMarker('4001 · ROM', new THREE.Vector3(-1.1, 0.3, -0.6));
+    createLabelMarker('4002 · RAM', new THREE.Vector3(1.1, 0.3, -0.6));
+    createLabelMarker('4003 · Reg. Desplazamiento', new THREE.Vector3(0, 0.3, 0.7));
+    createLabelMarker('Oscilador 740 kHz', new THREE.Vector3(-1.6, 0.45, 0.9));
+    createLabelMarker('Display 7 segmentos', new THREE.Vector3(0, 0.35, 1.3));
+    createLabelMarker('Teclado numérico', new THREE.Vector3(1.2, 0.35, 1.0));
+
+    // ============================================================
+    // CONTROLES
+    // ============================================================
+    let labelsVisible = false;
+    let exploded = false;
+    let lightsOn = true;
+    let tapesMoving = true;
+    let autoRotateEnabled = true;
+
+    const btnRotate = document.getElementById('btn-rotate');
+    const btnLabels = document.getElementById('btn-labels');
+    const btnExplode = document.getElementById('btn-explode');
+    const btnLights = document.getElementById('btn-lights');
+    const btnTape = document.getElementById('btn-tape');
+    const btnReset = document.getElementById('btn-reset');
+    const hoverHint = document.getElementById('hover-hint');
+
+    setTimeout(() => {
+      hoverHint.classList.add('visible');
+      setTimeout(() => hoverHint.classList.remove('visible'), 5000);
+    }, 1500);
+
+    btnRotate.addEventListener('click', () => {
+      autoRotateEnabled = !autoRotateEnabled;
+      controls.autoRotate = autoRotateEnabled;
+      btnRotate.classList.toggle('active', autoRotateEnabled);
+    });
+
+    btnLabels.addEventListener('click', () => {
+      labelsVisible = !labelsVisible;
+      btnLabels.classList.toggle('active', labelsVisible);
+    });
+
+    btnExplode.addEventListener('click', () => {
+      exploded = !exploded;
+      btnExplode.classList.toggle('active', exploded);
+
+      const duration = 0.7;
+      const startTime = performance.now();
+
+      const startPositions = {
+        cpu: cpuGroup.position.clone(),
+        rom: rom4001.position.clone(),
+        ram: ram4002.position.clone(),
+        sreg: sreg4003.position.clone(),
+        quartz: quartzGroup.position.clone(),
+        display: displayGroup.position.clone(),
+        keyboard: keyboardGroup.position.clone(),
+      };
+
+      const targetPositions = exploded ? {
+        cpu: new THREE.Vector3(0, 1.2, 0),
+        rom: new THREE.Vector3(-1.6, 0.9, -1.0),
+        ram: new THREE.Vector3(1.6, 0.9, -1.0),
+        sreg: new THREE.Vector3(0, 0.9, 1.3),
+        quartz: new THREE.Vector3(-2.2, 0.8, 1.4),
+        display: new THREE.Vector3(0, 0.9, 2.0),
+        keyboard: new THREE.Vector3(1.8, 0.8, 1.6),
+      } : {
+        cpu: new THREE.Vector3(0, 0, 0),
+        rom: new THREE.Vector3(-1.1, 0, -0.6),
+        ram: new THREE.Vector3(1.1, 0, -0.6),
+        sreg: new THREE.Vector3(0, 0, 0.7),
+        quartz: new THREE.Vector3(-1.6, 0, 0.9),
+        display: new THREE.Vector3(0, 0, 1.3),
+        keyboard: new THREE.Vector3(1.2, 0, 1.0),
+      };
+
+      function step() {
+        const t = Math.min(1, (performance.now() - startTime) / 1000 / duration);
+        const e = 1 - Math.pow(1 - t, 3);
+        cpuGroup.position.lerpVectors(startPositions.cpu, targetPositions.cpu, e);
+        rom4001.position.lerpVectors(startPositions.rom, targetPositions.rom, e);
+        ram4002.position.lerpVectors(startPositions.ram, targetPositions.ram, e);
+        sreg4003.position.lerpVectors(startPositions.sreg, targetPositions.sreg, e);
+        quartzGroup.position.lerpVectors(startPositions.quartz, targetPositions.quartz, e);
+        displayGroup.position.lerpVectors(startPositions.display, targetPositions.display, e);
+        keyboardGroup.position.lerpVectors(startPositions.keyboard, targetPositions.keyboard, e);
+        if (t < 1) requestAnimationFrame(step);
+      }
+      step();
+    });
+
+    btnLights.addEventListener('click', () => {
+      lightsOn = !lightsOn;
+      btnLights.classList.toggle('active', !lightsOn);
+      scene.traverse(child => {
+        if (child.isMesh && child.material) {
+          const mats = Array.isArray(child.material) ? child.material : [child.material];
+          mats.forEach(m => {
+            if (m.emissive && m.userData.baseIntensity !== undefined) {
+              m.emissiveIntensity = lightsOn ? m.userData.baseIntensity : 0.0;
+            }
+          });
+        }
+      });
+    });
+
+    btnTape.addEventListener('click', () => {
+      tapesMoving = !tapesMoving;
+      btnTape.classList.toggle('active', !tapesMoving);
+    });
+
+    btnReset.addEventListener('click', () => {
+      camera.position.set(2.2, 1.6, 3.2);
+      controls.target.set(0, 0.3, 0);
+      controls.update();
+      autoRotateEnabled = true;
+      controls.autoRotate = true;
+      btnRotate.classList.add('active');
+    });
+
+    // ============================================================
+    // BUCLE
+    // ============================================================
+    const clock = new THREE.Clock();
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      const delta = clock.getDelta();
+      const time = performance.now() / 1000;
+
+      controls.update();
+
+      // Parpadeo muy sutil (reducido)
+      if (lightsOn) {
+        const flicker = 1.0 + Math.sin(time * 2.5) * 0.18;
+        matLEDRed.emissiveIntensity = flicker;
+        matLEDAmber.emissiveIntensity = flicker * 0.85;
+      }
+
+      if (tapesMoving) {
+        quartzCap.rotation.y += delta * 0.25;
+      }
+
+      if (labelsVisible) {
+        labelMarkers.forEach(m => {
+          const v = m.position.clone();
+          v.project(camera);
+          if (v.z > 1) {
+            m.element.classList.remove('visible');
+          } else {
+            m.element.style.left = `${(v.x * 0.5 + 0.5) * window.innerWidth}px`;
+            m.element.style.top = `${(-v.y * 0.5 + 0.5) * window.innerHeight}px`;
+            m.element.classList.add('visible');
+          }
+        });
+      } else {
+        labelMarkers.forEach(m => m.element.classList.remove('visible'));
+      }
+
+      if (tooltipPinned && pinnedDevice) {
+        const representative = interactiveObjects.find(o => o.userData.device === pinnedDevice);
+        if (representative) {
+          const worldPos = new THREE.Vector3();
+          representative.getWorldPosition(worldPos);
+          worldPos.project(camera);
+          if (worldPos.z < 1) {
+            const sx = (worldPos.x * 0.5 + 0.5) * window.innerWidth;
+            const sy = (-worldPos.y * 0.5 + 0.5) * window.innerHeight;
+            showTooltip(pinnedDevice, sx, sy);
+          }
+        }
+      }
+
+      composer.render();
+    }
+
+    animate();
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      composer.setSize(window.innerWidth, window.innerHeight);
+      const pr = renderer.getPixelRatio();
+      fxaaPass.material.uniforms['resolution'].value.x = 1 / (window.innerWidth * pr);
+      fxaaPass.material.uniforms['resolution'].value.y = 1 / (window.innerHeight * pr);
+    });
+
+    console.log('Intel 4004 · Reconstrucción museística 3D con brillo reducido.');
+  </script>
+</body>
+</html>
